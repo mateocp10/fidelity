@@ -1,0 +1,696 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:confetti/confetti.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../scanner/scanner_screen.dart';
+import 'card_history_screen.dart';
+import '../profile/user_profile_screen.dart';
+import '../profile/providers/user_profile_provider.dart';
+import '../../core/theme/app_theme.dart';
+import 'providers/my_cards_provider.dart';
+import 'dart:async';
+import '../../core/services/realtime_sync_service.dart';
+
+class MyCardsScreen extends ConsumerStatefulWidget {
+  const MyCardsScreen({super.key});
+
+  @override
+  ConsumerState<MyCardsScreen> createState() => _MyCardsScreenState();
+}
+
+class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
+  late ConfettiController _confettiController;
+  static bool _welcomeShown = false;
+
+  StreamSubscription<void>? _loyaltyCardsSub;
+  StreamSubscription<void>? _rewardsSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+
+    // Bind real-time event handlers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notifier = ref.read(myCardsProvider.notifier);
+      notifier.onCardCompleted = _showCelebrationDialog;
+      notifier.onPointEarned = _showPointEarnedAnimation;
+      _checkWelcomeMessage();
+    });
+
+    _loyaltyCardsSub = RealtimeSyncService().onLoyaltyCardsChanged.listen((_) {
+      if (mounted) {
+        ref.read(myCardsProvider.notifier).refreshCards();
+      }
+    });
+    _rewardsSub = RealtimeSyncService().onRewardsChanged.listen((_) {
+      if (mounted) {
+        ref.read(myCardsProvider.notifier).refreshCards();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _loyaltyCardsSub?.cancel();
+    _rewardsSub?.cancel();
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  void _showPointEarnedAnimation() {
+    if (!mounted) return;
+    _confettiController.play();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('¡Punto aprobado! Sumaste 1 punto ✨', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppTheme.accentGreen,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _checkWelcomeMessage() {
+    if (_welcomeShown) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null && user.createdAt.isNotEmpty) {
+      final createdAt = DateTime.tryParse(user.createdAt);
+      if (createdAt != null) {
+        if (DateTime.now().difference(createdAt).inMinutes < 2) {
+          _welcomeShown = true;
+          if (mounted) {
+            _showWelcomeDialog();
+          }
+        }
+      }
+    }
+  }
+
+  void _showWelcomeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Column(
+          children: [
+            const Icon(Icons.waving_hand_rounded, color: AppTheme.accentPurple, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              '¡Bienvenido a Fidelity!',
+              style: GoogleFonts.anton(
+                fontSize: 24,
+                color: AppTheme.accentPurple,
+                letterSpacing: 1,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        content: const Text(
+          'Tu cuenta ha sido creada exitosamente.\n\nAquí podrás ver tus tarjetas y acumular puntos escaneando los códigos QR de tus negocios favoritos.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16, color: Colors.black87),
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentPurple,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+              child: const Text('¡Empezar!'),
+            ),
+          ),
+        ],
+      ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+    );
+  }
+
+  void _showCelebrationDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(48)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 20),
+            Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.celebration_rounded,
+                    size: 64,
+                    color: AppTheme.accentGreen,
+                  ),
+                )
+                .animate(onPlay: (c) => c.repeat())
+                .scale(
+                  begin: const Offset(0.8, 0.8),
+                  end: const Offset(1.2, 1.2),
+                  duration: 600.ms,
+                  curve: Curves.elasticOut,
+                )
+                .then()
+                .scale(
+                  begin: const Offset(1.2, 1.2),
+                  end: const Offset(0.8, 0.8),
+                ),
+            const SizedBox(height: 32),
+            Text(
+              '¡FELICIDADES!',
+              style: GoogleFonts.anton(
+                fontSize: 24,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 2,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '¡HAS COMPLETADO TU TARJETA!',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppTheme.accentPurple,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Ya puedes acercarte al local para reclamar tu premio. ¡Disfrútalo!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.black45,
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 48,
+                  vertical: 16,
+                ),
+              ),
+              child: const Text('¡GENIAL!'),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  /// Extracts first name + last name from full_name string.
+  String _getDisplayName(String fullName) {
+    if (fullName.isEmpty) return '';
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) return '${parts[0]} ${parts[1]}';
+    return parts[0];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final state = ref.watch(myCardsProvider);
+    
+    // Listen to error state
+    ref.listen<MyCardsState>(myCardsProvider, (previous, next) {
+      if (next.error != null && next.error != previous?.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${next.error}'),
+            backgroundColor: theme.colorScheme.error,
+          ),
+        );
+      }
+    });
+
+    final displayName = _getDisplayName(state.userName);
+
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          appBar: AppBar(
+        toolbarHeight: 100,
+        backgroundColor: Colors.white,
+        centerTitle: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+              if (displayName.isNotEmpty)
+                Text(
+                  'Hola, $displayName',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black87,
+                  ),
+                ),
+          ],
+        ),
+        leadingWidth: 70,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: Center(
+            child: GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                );
+                if (result == true) {
+                  ref.invalidate(myCardsProvider);
+                  ref.invalidate(userProfileProvider);
+                }
+              },
+              child: Stack(
+                children: [
+                  Hero(
+                    tag: 'user_avatar',
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.accentPurple.withValues(alpha: 0.1),
+                        image: state.avatarUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(state.avatarUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: state.avatarUrl == null
+                          ? Center(
+                              child: Text(
+                                state.userName.isNotEmpty
+                                    ? state.userName[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.accentPurple,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppTheme.accentPurple, AppTheme.accentPink],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        size: 10,
+                        color: Colors.white,
+                      ),
+                    )
+                        .animate(
+                          onPlay: (controller) => controller.repeat(reverse: true),
+                        )
+                        .scale(
+                          duration: const Duration(seconds: 1),
+                          begin: const Offset(1, 1),
+                          end: const Offset(1.15, 1.15),
+                          curve: Curves.easeInOut,
+                        )
+                        .shimmer(
+                          duration: const Duration(seconds: 3),
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: state.isLoading && state.cards.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : state.cards.isEmpty
+            ? _buildEmptyState(theme)
+            : RefreshIndicator(
+                onRefresh: () => ref.read(myCardsProvider.notifier).refreshCards(),
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 24,
+                  ),
+                  itemCount: state.cards.length,
+                  itemBuilder: (context, index) {
+                    return _LoyaltyCardItem(
+                      card: state.cards[index],
+                      index: index,
+                      onTap: () {
+                        final card = state.cards[index];
+                        final business = card['businesses'];
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CardHistoryScreen(
+                              loyaltyCardId: card['id'],
+                              businessId: business['id'],
+                              businessName: business['name'],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+      ),
+      floatingActionButton: state.cards.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ScannerScreen()),
+                );
+              },
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('ESCANEAR QR'),
+            ).animate().scale(delay: 1.seconds, curve: Curves.elasticOut),
+        ),
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confettiController,
+            blastDirection: 3.14 / 2, // Hacia abajo
+            maxBlastForce: 5, 
+            minBlastForce: 2, 
+            emissionFrequency: 0.05, 
+            numberOfParticles: 50, 
+            gravity: 0.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: AppTheme.accentPurple.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.card_membership_rounded,
+              size: 80,
+              color: AppTheme.accentPurple,
+            ),
+          ).animate().scale(curve: Curves.elasticOut, duration: 800.ms),
+          const SizedBox(height: 32),
+          Text(
+            '¡EMPIEZA TU COLECCIÓN!',
+            style: GoogleFonts.anton(
+              fontSize: 20,
+              fontWeight: FontWeight.w400,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'ESCANEA TU PRIMER CÓDIGO QR EN\nCUALQUIER LOCAL AFILIADO.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Colors.black26,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 48),
+          ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ScannerScreen()),
+                ),
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                label: const Text('ESCANEAR AHORA'),
+              )
+              .animate(delay: 400.ms)
+              .fadeIn()
+              .moveY(begin: 20, curve: Curves.easeOut),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoyaltyCardItem extends StatelessWidget {
+  final Map<String, dynamic> card;
+  final int index;
+  final VoidCallback onTap;
+
+  const _LoyaltyCardItem({
+    required this.card,
+    required this.index,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final business = card['businesses'];
+    final currentPoints = card['current_points'] as int;
+    final pointsRequired = business['points_required'] as int;
+    final progress = (currentPoints / pointsRequired).clamp(0.0, 1.0);
+    final theme = Theme.of(context);
+
+    // Colores dinámicos basados en el índice para variedad (Estilo Emote)
+    final accents = [
+      AppTheme.accentPurple,
+      AppTheme.accentPink,
+      AppTheme.accentYellow,
+      AppTheme.accentGreen,
+    ];
+    final accentColor = accents[index % accents.length];
+
+    return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(48),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(24),
+                        image: business['logo_url'] != null
+                            ? DecorationImage(
+                                image: NetworkImage(business['logo_url']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: business['logo_url'] == null
+                          ? Icon(
+                              AppTheme.getCategoryIcon(
+                                business['business_categories']?['name'] ??
+                                    business['category'],
+                              ),
+                              color: accentColor,
+                              size: 32,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            business['name'].toString().toUpperCase(),
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          if (business['reward_description'] != null)
+                            Text(
+                              business['reward_description']!
+                                  .toString()
+                                  .toUpperCase(),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          if (business['reward_long_description'] != null)
+                            Text(
+                              business['reward_long_description'].toString(),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.black38,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // Progreso Estilo Minimalista
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '$currentPoints / $pointsRequired PUNTOS',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: accentColor,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 14,
+                    backgroundColor: accentColor.withValues(alpha: 0.1),
+                    valueColor: AlwaysStoppedAnimation(accentColor),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Stats en horizontal
+                Row(
+                  children: [
+                    _MiniStat(
+                      icon: Icons.auto_awesome,
+                      value: (card['total_points_lifetime'] ?? 0).toString(),
+                      label: 'TOTAL',
+                      color: accentColor,
+                    ),
+                    const Spacer(),
+                    _MiniStat(
+                      icon: Icons.card_giftcard,
+                      value: (card['rewards_claimed'] ?? 0).toString(),
+                      label: 'CANJES',
+                      color: AppTheme.accentPink,
+                    ),
+                    const Spacer(),
+                    _MiniStat(
+                      icon: Icons.calendar_today_outlined,
+                      value: 'ACTIVA',
+                      label: 'ESTADO',
+                      color: AppTheme.accentGreen,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        )
+        .animate(delay: (index * 100).ms)
+        .slideY(begin: 0.2, curve: Curves.elasticOut, duration: 800.ms)
+        .fadeIn();
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  const _MiniStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 28, color: color),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.black38,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+
