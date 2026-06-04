@@ -48,7 +48,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final metadata = {'role': _selectedRole};
+      final metadata = {
+        'role': _selectedRole,
+        'full_name': _fullNameController.text.trim(),
+      };
       final authResponse = await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -94,6 +97,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (authResponse.session == null) {
           _showVerificationDialog();
         } else {
+          // Si es cliente, cerramos la sesión para obligarlo a loguearse (como pidió el usuario)
+          // y evitar que MyCardsScreen lance el diálogo de bienvenida en el fondo.
+          if (_selectedRole == 'client') {
+            await supabase.auth.signOut();
+          }
+          
           Future.delayed(1500.ms, () {
             if (mounted) {
               if (_selectedRole == 'business') {

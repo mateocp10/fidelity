@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/validators/app_validators.dart';
 import '../auth/login_screen.dart';
 import '../help/faqs_screen.dart';
+import '../auth/providers/auth_provider.dart';
 import 'providers/user_profile_provider.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
@@ -235,20 +236,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
     if (confirm != true) return;
 
-    final success = await ref.read(userProfileProvider.notifier).logout();
-    if (mounted) {
-      if (success) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      } else {
-        final error = ref.read(userProfileProvider).error;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $error'), backgroundColor: AppTheme.accentPink),
-        );
-      }
-    }
+    await ref.read(authStateProvider.notifier).logout();
   }
 
   @override

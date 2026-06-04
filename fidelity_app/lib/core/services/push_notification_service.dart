@@ -7,6 +7,10 @@ import '../../../main.dart';
 import '../../features/business/dashboard/business_dashboard_screen.dart';
 import '../../features/cards/my_cards_screen.dart';
 import '../../features/admin/admin_dashboard_screen.dart';
+import '../../features/admin/admin_users_screen.dart';
+import '../../features/admin/admin_businesses_screen.dart';
+import '../../features/admin/admin_activity_screen.dart';
+import '../../features/admin/admin_rewards_screen.dart';
 
 class PushNotificationService {
   static final _firebaseMessaging = FirebaseMessaging.instance;
@@ -134,6 +138,18 @@ class PushNotificationService {
          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
          (r) => false,
        );
+    } else if (route == '/admin_users') {
+       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
+       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminUsersScreen()));
+    } else if (route == '/admin_businesses') {
+       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
+       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminBusinessesScreen()));
+    } else if (route == '/admin_activity') {
+       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
+       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminActivityScreen()));
+    } else if (route == '/admin_rewards') {
+       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
+       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminRewardsScreen()));
     }
   }
 

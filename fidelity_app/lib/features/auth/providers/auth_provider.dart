@@ -10,6 +10,10 @@ import '../../cards/providers/my_cards_provider.dart';
 import '../../profile/providers/user_profile_provider.dart';
 import '../../scanner/providers/scanner_provider.dart';
 import '../data/auth_repository.dart';
+import '../../../main.dart';
+import '../../../core/services/push_notification_service.dart';
+import '../login_screen.dart';
+import 'package:flutter/material.dart';
 
 // Definición de estados posibles para la sesión
 abstract class AuthStateStatus {}
@@ -71,7 +75,11 @@ class AuthNotifier extends Notifier<AuthStateStatus> {
     }
 
     try {
-      final user = session.user;
+      final user = repository.currentUser;
+      if (user == null) {
+        state = AuthUnauthenticated();
+        return;
+      }
       final userRole = user.userMetadata?['role'];
 
       if (userRole == 'admin') {
@@ -97,9 +105,20 @@ class AuthNotifier extends Notifier<AuthStateStatus> {
   }
 
   Future<void> logout() async {
+    try {
+      await PushNotificationService.removeTokenFromDatabase();
+    } catch (_) {}
     await ref.read(authRepositoryProvider).signOut();
     _clearSessionScopedState();
     state = AuthUnauthenticated();
+    
+    final context = globalNavigatorKey.currentContext;
+    if (context != null && context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 }
 

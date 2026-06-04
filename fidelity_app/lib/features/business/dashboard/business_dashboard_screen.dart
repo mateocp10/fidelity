@@ -21,6 +21,7 @@ import 'widgets/dashboard_animated_toast.dart';
 import 'widgets/tabs/tab_customers.dart';
 import 'widgets/tabs/tab_pending_scans.dart';
 import 'widgets/tabs/tab_statistics.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class BusinessDashboardScreen extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -63,23 +64,32 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     super.dispose();
   }
 
-  void _checkWelcomeMessage() {
+  void _checkWelcomeMessage() async {
     if (_welcomeShown) return;
     final user = Supabase.instance.client.auth.currentUser;
-    if (user != null && user.createdAt.isNotEmpty) {
-      final createdAt = DateTime.tryParse(user.createdAt);
-      if (createdAt != null) {
-        if (DateTime.now().difference(createdAt).inMinutes < 2) {
-          _welcomeShown = true;
-          if (mounted) {
-            _showWelcomeDialog();
-          }
+    if (user != null) {
+      final hasSeen = user.userMetadata?['has_seen_welcome'] == true;
+      if (!hasSeen) {
+        _welcomeShown = true;
+        if (mounted) {
+          _showWelcomeDialog();
         }
+        try {
+          await Supabase.instance.client.auth.updateUser(
+            UserAttributes(data: {'has_seen_welcome': true}),
+          );
+        } catch (_) {}
       }
     }
   }
 
   void _showWelcomeDialog() {
+    final state = ref.read(dashboardProvider);
+    String ownerDisplayName = '';
+    if (state.ownerName.isNotEmpty) {
+      final parts = state.ownerName.trim().split(RegExp(r'\s+'));
+      ownerDisplayName = parts.length >= 2 ? '${parts[0]} ${parts[1]}' : parts[0];
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -100,10 +110,10 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
             ),
           ],
         ),
-        content: const Text(
-          'Tu negocio ha sido registrado exitosamente.\n\nDesde aquí podrás administrar tus clientes, aprobar escaneos y gestionar los premios.',
+        content: Text(
+          '¡Hola $ownerDisplayName, tu negocio ha sido registrado y activado exitosamente!\n\nDesde aquí podrás administrar tus clientes, aprobar escaneos y gestionar los premios.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colors.black87),
+          style: const TextStyle(fontSize: 16, color: Colors.black87),
         ),
         actions: [
           Center(
@@ -447,11 +457,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
             IconButton(
               icon: const Icon(Icons.logout_rounded),
               onPressed: () async {
-                await PushNotificationService.removeTokenFromDatabase();
-                await ref.read(supabaseClientProvider).auth.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
-                }
+                await ref.read(authStateProvider.notifier).logout();
               },
             ),
             const SizedBox(width: 8),

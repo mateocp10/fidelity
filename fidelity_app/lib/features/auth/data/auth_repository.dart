@@ -22,6 +22,10 @@ class AuthRepository {
     await _supabase.auth.signOut();
   }
 
+  Future<void> refreshSession() async {
+    await _supabase.auth.refreshSession();
+  }
+
   Future<bool> isBusinessActive(String businessId) async {
     try {
       final response = await _supabase

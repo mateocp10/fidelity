@@ -13,6 +13,8 @@ import 'widgets/business_creation/step_campaign_data.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/models/business_category.dart';
 import '../../core/providers/supabase_provider.dart';
+import '../auth/providers/auth_provider.dart';
+import '../auth/data/auth_repository.dart';
 
 import 'providers/create_business_provider.dart';
 import 'data/business_repository.dart';
@@ -167,13 +169,15 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
         ),
         title: Text(
-          '¡CASI LISTO!',
+          '¡TODO LISTO!',
           style: GoogleFonts.anton(
             letterSpacing: 1,
+            color: Colors.black,
           ),
           textAlign: TextAlign.center,
         ),
@@ -181,8 +185,9 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Tu negocio ha sido creado exitosamente.\n\nPara empezar a fidelizar clientes, debes activar tu cuenta realizando el pago correspondiente.\n\nComunícate con nosotros para procesarlo:',
+              'Tu negocio fue creado exitosamente.\n\nPara activarlo en la plataforma, comunícate con nosotros por WhatsApp o correo:',
               textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -198,19 +203,12 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
                 ),
               ),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-             .scaleXY(begin: 1.0, end: 1.03, duration: 1.2.seconds, curve: Curves.easeInOut),
+              .scaleXY(begin: 1.0, end: 1.03, duration: 1.2.seconds, curve: Curves.easeInOut),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  final businessName = _businessNameController.text.trim();
-                  final text = Uri.encodeComponent('Hola Fidelity, acabo de registrar mi negocio "$businessName" y quisiera activarlo para empezar a usar la plataforma.');
-                  launchUrl(
-                    Uri.parse('https://wa.me/593995371895?text=$text'),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
+                onPressed: () => launchUrl(Uri.parse('https://wa.me/593995371895')),
                 icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                 label: const Text('Contactar por WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
@@ -221,7 +219,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
                 ),
               ),
             ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-             .scaleXY(begin: 1.0, end: 1.03, duration: 1.2.seconds, delay: 600.ms, curve: Curves.easeInOut),
+              .scaleXY(begin: 1.0, end: 1.03, duration: 1.2.seconds, delay: 600.ms, curve: Curves.easeInOut),
           ],
         ),
         actions: [
@@ -230,6 +228,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
+                ref.read(authStateProvider.notifier).logout();
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                   (route) => false,
@@ -251,11 +250,11 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     final createBusinessState = ref.watch(createBusinessProvider);
 
-    // Escuchar el estado para reaccionar a errores o éxitos
     ref.listen<CreateBusinessState>(createBusinessProvider, (previous, next) {
       if (next.error != null && (previous?.error != next.error)) {
         ScaffoldMessenger.of(context).showSnackBar(

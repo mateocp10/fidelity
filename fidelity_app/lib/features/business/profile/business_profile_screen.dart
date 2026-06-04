@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/models/business_category.dart';
 import '../../auth/login_screen.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../help/business_faqs_screen.dart';
 import '../widgets/location_picker_map.dart';
 
@@ -329,14 +330,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
         );
       }
 
-      await PushNotificationService.removeTokenFromDatabase();
-      await supabase.auth.signOut();
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      }
+      await ProviderScope.containerOf(context).read(authStateProvider.notifier).logout();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

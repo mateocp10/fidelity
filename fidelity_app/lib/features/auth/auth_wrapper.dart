@@ -116,7 +116,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
 
     // Escuchar cambios de estado para mostrar dialogos (side-effects)
     ref.listen<AuthStateStatus>(authStateProvider, (previous, next) {
-      if (next is AuthBusinessInactive) {
+      if (next is AuthBusinessInactive && previous is! AuthBusinessInactive) {
         _showInactiveAccountDialog();
       }
       

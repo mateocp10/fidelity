@@ -11,15 +11,17 @@ import 'admin_users_screen.dart';
 import 'admin_activity_screen.dart';
 import 'admin_rewards_screen.dart';
 import 'admin_qr_stats_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../auth/providers/auth_provider.dart';
 
-class AdminDashboardScreen extends StatefulWidget {
+class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+  ConsumerState<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   final supabase = Supabase.instance.client;
   bool _isLoading = true;
 
@@ -230,13 +232,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _logout() async {
-    await PushNotificationService.removeTokenFromDatabase();
-    await supabase.auth.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    await ref.read(authStateProvider.notifier).logout();
   }
 
   @override

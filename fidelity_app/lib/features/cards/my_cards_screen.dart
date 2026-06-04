@@ -72,23 +72,29 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
     );
   }
 
-  void _checkWelcomeMessage() {
+  void _checkWelcomeMessage() async {
     if (_welcomeShown) return;
     final user = Supabase.instance.client.auth.currentUser;
-    if (user != null && user.createdAt.isNotEmpty) {
-      final createdAt = DateTime.tryParse(user.createdAt);
-      if (createdAt != null) {
-        if (DateTime.now().difference(createdAt).inMinutes < 2) {
-          _welcomeShown = true;
-          if (mounted) {
-            _showWelcomeDialog();
-          }
+    if (user != null) {
+      final hasSeen = user.userMetadata?['has_seen_welcome'] == true;
+      if (!hasSeen) {
+        _welcomeShown = true;
+        if (mounted) {
+          _showWelcomeDialog();
         }
+        try {
+          await Supabase.instance.client.auth.updateUser(
+            UserAttributes(data: {'has_seen_welcome': true}),
+          );
+        } catch (_) {}
       }
     }
   }
 
   void _showWelcomeDialog() {
+    final state = ref.read(myCardsProvider);
+    final displayName = _getDisplayName(state.userName);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -109,10 +115,10 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
             ),
           ],
         ),
-        content: const Text(
-          'Tu cuenta ha sido creada exitosamente.\n\nAquí podrás ver tus tarjetas y acumular puntos escaneando los códigos QR de tus negocios favoritos.',
+        content: Text(
+          '¡Hola $displayName, tu cuenta ha sido creada exitosamente!\n\nAquí podrás ver tus tarjetas y acumular puntos escaneando los códigos QR de tus negocios favoritos.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colors.black87),
+          style: const TextStyle(fontSize: 16, color: Colors.black87),
         ),
         actions: [
           Center(

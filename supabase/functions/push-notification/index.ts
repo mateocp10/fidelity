@@ -82,8 +82,32 @@ async function handleProfiles(payload: WebhookPayload) {
   if (payload.type === 'INSERT') {
     const profile = payload.record;
     if (profile.role === 'client') {
-      const name = profile.full_name || 'Un nuevo usuario';
-      await broadcastToAdmins('Nuevo Cliente', `${name} creó cuenta como cliente.`, '/admin_dashboard');
+      // Esperar 1 segundo para que la app (Dart) tenga tiempo de hacer el upsert
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Consultar el perfil actualizado
+      const { data: updatedProfile } = await supabase.from('profiles').select('full_name, role').eq('id', profile.id).single();
+      
+      let name = updatedProfile?.full_name || profile.full_name;
+      let actualRole = updatedProfile?.role || profile.role;
+      
+      // Fallback final a metadata
+      if (!name) {
+        try {
+          const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
+          name = userData?.user?.user_metadata?.full_name || userData?.user?.user_metadata?.name;
+          actualRole = actualRole === 'client' ? (userData?.user?.user_metadata?.role || actualRole) : actualRole;
+        } catch (e) {
+          console.error('Error fetching user meta:', e);
+        }
+      }
+      
+      if (actualRole === 'business') {
+        return; // No enviar notificación de cliente si en realidad es negocio
+      }
+      
+      name = name || 'Un nuevo usuario';
+      await broadcastToAdmins('Nuevo Cliente', `${name} creó cuenta como cliente.`, '/admin_users');
     }
   }
 }
@@ -92,7 +116,7 @@ async function handleBusinesses(payload: WebhookPayload) {
   if (payload.type === 'INSERT') {
     const business = payload.record;
     const { userName } = await getUserTokenAndName(business.owner_id);
-    await broadcastToAdmins('Nuevo Negocio', `${userName} creó su negocio ${business.name}.`, '/admin_dashboard');
+    await broadcastToAdmins('Nuevo Negocio Registrado', `Se creó una nueva cuenta como negocio (${business.name} por ${userName}). Apruebe o póngase en contacto.`, '/admin_businesses');
   }
 }
 
@@ -105,7 +129,7 @@ async function handleScans(payload: WebhookPayload) {
     if (ownerToken) {
       await sendPushNotification(ownerToken, '¡Nuevo escaneo!', `${clientName} hizo un escaneo, pendiente de aprobar.`, { route: '/business_dashboard' });
     }
-    await broadcastToAdmins('Nuevo Escaneo 📸', `${clientName} escaneó un QR en ${businessName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Nuevo Escaneo 📸', `${clientName} escaneó un QR en ${businessName}.`, '/admin_activity');
   }
 
   // Si se aprueba manualmente sin QR
@@ -113,21 +137,21 @@ async function handleScans(payload: WebhookPayload) {
     if (clientToken) {
       await sendPushNotification(clientToken, '¡Punto asignado manualmente! 🎉', `${businessName} te ha dado un punto.`, { route: '/my_cards' });
     }
-    await broadcastToAdmins('Punto Manual ⚡', `${businessName} asignó un punto manualmente a ${clientName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Punto Manual ⚡', `${businessName} asignó un punto manualmente a ${clientName}.`, '/admin_activity');
   }
 
   if (payload.type === 'UPDATE' && scan.status === 'approved' && payload.old_record?.status !== 'approved') {
     if (clientToken) {
       await sendPushNotification(clientToken, '¡Punto aprobado! 🎉', `Tu escaneo en ${businessName} fue aprobado.`, { route: '/my_cards' });
     }
-    await broadcastToAdmins('Escaneo Aprobado ✅', `${businessName} aprobó el escaneo de ${clientName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Escaneo Aprobado ✅', `${businessName} aprobó el escaneo de ${clientName}.`, '/admin_activity');
   }
 
   if (payload.type === 'UPDATE' && scan.status === 'rejected' && payload.old_record?.status !== 'rejected') {
     if (clientToken) {
       await sendPushNotification(clientToken, 'Escaneo rechazado ❌', `Tu escaneo en ${businessName} no fue aprobado.`, { route: '/my_cards' });
     }
-    await broadcastToAdmins('Escaneo Rechazado ❌', `${businessName} rechazó el escaneo de ${clientName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Escaneo Rechazado ❌', `${businessName} rechazó el escaneo de ${clientName}.`, '/admin_activity');
   }
 }
 
@@ -143,21 +167,21 @@ async function handleRewards(payload: WebhookPayload) {
     if (clientToken) {
       await sendPushNotification(clientToken, '¡Premio alcanzado! 🎁', `Haz ganado premio en ${businessName}, acercate a retirar, la aprobación esta pendiente.`, { route: '/my_cards' });
     }
-    await broadcastToAdmins('Premio Alcanzado 🎁', `${clientName} alcanzó un premio en ${businessName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Premio Alcanzado 🎁', `${clientName} alcanzó un premio en ${businessName}.`, '/admin_rewards');
   }
 
   if (payload.type === 'UPDATE' && (reward.status === 'approved' || reward.status === 'claimed') && payload.old_record?.status !== reward.status) {
     if (clientToken) {
       await sendPushNotification(clientToken, '¡Premio entregado! 🥳', `Tu premio en ${businessName} fue aprobado.`, { route: '/my_cards' });
     }
-    await broadcastToAdmins('Premio Entregado ✅', `${businessName} entregó el premio a ${clientName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Premio Entregado ✅', `${businessName} entregó el premio a ${clientName}.`, '/admin_rewards');
   }
 
   if (payload.type === 'UPDATE' && reward.status === 'rejected' && payload.old_record?.status !== 'rejected') {
     if (clientToken) {
       await sendPushNotification(clientToken, 'Premio rechazado ❌', `Tu premio en ${businessName} fue rechazado.`, { route: '/my_cards' });
     }
-    await broadcastToAdmins('Premio Rechazado ❌', `${businessName} rechazó el premio de ${clientName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Premio Rechazado ❌', `${businessName} rechazó el premio de ${clientName}.`, '/admin_rewards');
   }
 }
 
@@ -176,7 +200,7 @@ async function handleRewardTransfers(payload: WebhookPayload) {
       await sendPushNotification(ownerToken, 'Transferencia de premio 🔄', `${senderName} transfirió su premio a ${receiverName}.`, { route: '/business_dashboard' });
     }
 
-    await broadcastToAdmins('Premio Transferido 🔄', `${senderName} transfirió un premio a ${receiverName} en ${businessName}.`, '/admin_dashboard');
+    await broadcastToAdmins('Premio Transferido 🔄', `${senderName} transfirió un premio a ${receiverName} en ${businessName}.`, '/admin_rewards');
   }
 }
 

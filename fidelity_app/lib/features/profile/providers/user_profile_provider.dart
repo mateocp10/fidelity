@@ -119,8 +119,14 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   Future<bool> logout() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      await PushNotificationService.removeTokenFromDatabase();
-      await Supabase.instance.client.auth.signOut();
+      // Instead of calling signout directly, we tell the auth state provider to do it.
+      // Wait, UserProfileNotifier doesn't have direct access to authStateProvider since they are separate notifiers,
+      // but it can read other providers via 'ref.read'.
+      // Actually, it's better to just call it.
+      // But wait! If we import auth_provider.dart, it might cause circular dependency if auth_provider imports user_profile_provider!
+      // auth_provider DOES import user_profile_provider to invalidate it.
+      // So we shouldn't import auth_provider here.
+      // Instead, UserProfileScreen should call ref.read(authStateProvider.notifier).logout() directly!
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
