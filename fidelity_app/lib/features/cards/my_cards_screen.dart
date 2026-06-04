@@ -37,7 +37,11 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
       final notifier = ref.read(myCardsProvider.notifier);
       notifier.onCardCompleted = _showCelebrationDialog;
       notifier.onPointEarned = _showPointEarnedAnimation;
-      _checkWelcomeMessage();
+      
+      // Evitar que el diálogo salte si la pantalla está oculta detrás del RegisterScreen
+      if (ModalRoute.of(context)?.isCurrent == true) {
+        _checkWelcomeMessage();
+      }
     });
 
     _loyaltyCardsSub = RealtimeSyncService().onLoyaltyCardsChanged.listen((_) {
