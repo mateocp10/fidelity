@@ -246,44 +246,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 32),
 
-                // Selector de Imagen
-                Center(
-                  child: GestureDetector(
-                    onTap: () async {
-                      final picker = ImagePicker();
-                      final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-                      if (img != null) setState(() => _avatarFile = img);
-                    },
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            shape: BoxShape.circle,
-                            image: _avatarFile != null 
-                              ? DecorationImage(image: FileImage(File(_avatarFile!.path)), fit: BoxFit.cover)
+                // Selector de Imagen (Solo para Clientes)
+                if (_selectedRole == 'client')
+                  Center(
+                    child: GestureDetector(
+                      onTap: () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+                        if (img != null) setState(() => _avatarFile = img);
+                      },
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              shape: BoxShape.circle,
+                              image: _avatarFile != null 
+                                ? DecorationImage(image: FileImage(File(_avatarFile!.path)), fit: BoxFit.cover)
+                                : null,
+                            ),
+                            child: _avatarFile == null 
+                              ? const Icon(Icons.add_a_photo_outlined, size: 32, color: Colors.black26)
                               : null,
                           ),
-                          child: _avatarFile == null 
-                            ? const Icon(Icons.add_a_photo_outlined, size: 32, color: Colors.black26)
-                            : null,
-                        ),
-                        if (_avatarFile != null)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(color: AppTheme.accentPurple, shape: BoxShape.circle),
-                              child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                          if (_avatarFile != null)
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(color: AppTheme.accentPurple, shape: BoxShape.circle),
+                                child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ).animate(delay: 100.ms).fadeIn().scale(),
+                  ).animate(delay: 100.ms).fadeIn().scale(),
 
                 const SizedBox(height: 40),
 
