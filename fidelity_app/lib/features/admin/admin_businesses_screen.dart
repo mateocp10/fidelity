@@ -37,10 +37,29 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
+  final ScrollController _scrollController = ScrollController();
+  bool _isFetchingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  static const int _pageSize = 20;
+
   @override
   void initState() {
     super.initState();
     _loadBusinesses();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && 
+          !_isFetchingMore && 
+          _hasMore) {
+        _fetchMoreBusinesses();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   (DateTime start, DateTime end)? _getDateRange() {
@@ -72,7 +91,12 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
   }
 
   Future<void> _loadBusinesses() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _currentPage = 0;
+      _hasMore = true;
+      _businesses = [];
+    });
     try {
       var query = supabase
           .from('businesses')
@@ -100,11 +124,14 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
                      .lte('created_at', dateRange.$2.toIso8601String());
       }
 
-      final response = await query.order('created_at', ascending: false);
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(0, _pageSize - 1);
 
       if (mounted) {
         setState(() {
           _businesses = List<Map<String, dynamic>>.from(response);
+          _hasMore = _businesses.length == _pageSize;
           _isLoading = false;
         });
       }
@@ -118,6 +145,60 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
           ),
         );
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _fetchMoreBusinesses() async {
+    setState(() => _isFetchingMore = true);
+    try {
+      _currentPage++;
+      final startIndex = _currentPage * _pageSize;
+      final endIndex = startIndex + _pageSize - 1;
+
+      var query = supabase
+          .from('businesses')
+          .select('''
+            id,
+            name,
+            category_id,
+            business_categories(name),
+            logo_url,
+            is_active,
+            is_demo,
+            created_at,
+            owner_id,
+            reward_description,
+            points_required,
+            profiles:owner_id (full_name, email, phone, is_demo),
+            loyalty_cards (
+              profiles:user_id (full_name, email, phone, is_demo)
+            )
+          ''');
+
+      final dateRange = _getDateRange();
+      if (dateRange != null) {
+        query = query.gte('created_at', dateRange.$1.toIso8601String())
+                     .lte('created_at', dateRange.$2.toIso8601String());
+      }
+
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(startIndex, endIndex);
+
+      final newItems = List<Map<String, dynamic>>.from(response);
+
+      if (mounted) {
+        setState(() {
+          _businesses.addAll(newItems);
+          _hasMore = newItems.length == _pageSize;
+          _isFetchingMore = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more businesses: $e');
+      if (mounted) {
+        setState(() => _isFetchingMore = false);
       }
     }
   }
@@ -237,10 +318,17 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
         backgroundColor: AppTheme.accentPurple,
         foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          // Barra de Búsqueda Profesional
-          Padding(
+      body: RefreshIndicator(
+        onRefresh: _loadBusinesses,
+        color: Colors.black,
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  // Barra de Búsqueda Profesional
+                  Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: Container(
               decoration: BoxDecoration(
@@ -336,39 +424,52 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
                     style: const TextStyle(color: Color(0xFF666666), fontSize: 12),
                   ),
                 ],
-              ],
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple),
-                    ),
-                  )
-                : _filteredBusinesses.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off_rounded, size: 48, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          _searchQuery.isEmpty 
-                              ? 'No hay negocios registrados' 
-                              : 'No se encontraron negocios',
-                          style: TextStyle(color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadBusinesses,
-                    color: Colors.black,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _filteredBusinesses.length,
-                      itemBuilder: (context, index) {
+          ],
+        ),
+      ),
+      if (_isLoading)
+          const SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple),
+              ),
+            ),
+          )
+        else if (_filteredBusinesses.isEmpty)
+          SliverFillRemaining(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    _searchQuery.isEmpty 
+                        ? 'No hay negocios registrados' 
+                        : 'No se encontraron negocios',
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                        if (index == _filteredBusinesses.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple)),
+                            ),
+                          );
+                        }
                         final business = _filteredBusinesses[index];
                         final owner = business['profiles'] ?? {};
                   final ownerName = owner['full_name'] ?? 'Desconocido';
@@ -667,6 +768,7 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

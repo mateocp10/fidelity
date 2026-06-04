@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/date_utils.dart';
@@ -17,12 +17,30 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
   List<Map<String, dynamic>> _businessesList = [];
   String _selectedFilter = 'all';
   String _selectedBusinessId = 'all';
+  final ScrollController _scrollController = ScrollController();
+  bool _isFetchingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  static const int _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
     _loadBusinesses();
     _loadActivity();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && 
+          !_isFetchingMore && 
+          _hasMore) {
+        _fetchMoreActivity();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBusinesses() async {
@@ -34,53 +52,43 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading businesses: ');
+      debugPrint('Error loading businesses: $e');
     }
   }
 
   Future<void> _loadActivity() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _currentPage = 0;
+      _hasMore = true;
+      _activities = [];
+    });
     try {
       var scansQuery = supabase.from('scans').select('''
             id, scanned_at, status, is_demo,
             profiles:user_id (full_name, email),
             businesses:business_id (name)
           ''');
-      var transfersQuery = supabase.from('reward_transfer_history').select('''
-            id, transferred_at,
-            from_user:from_user_id(full_name, email),
-            to_user:to_user_id(full_name, email),
-            businesses:business_id(name)
-          ''');
 
       final startOfDayUtc = EcuadorDateUtils.getStartOfDayEcuadorUtc();
       
       if (_selectedFilter == 'today') {
         scansQuery = scansQuery.gte('scanned_at', startOfDayUtc.toIso8601String());
-        transfersQuery = transfersQuery.gte('transferred_at', startOfDayUtc.toIso8601String());
       } else if (_selectedFilter == 'week') {
         final startOfWeek = startOfDayUtc.subtract(const Duration(days: 7));
         scansQuery = scansQuery.gte('scanned_at', startOfWeek.toIso8601String());
-        transfersQuery = transfersQuery.gte('transferred_at', startOfWeek.toIso8601String());
       } else if (_selectedFilter == 'month') {
         final startOfMonth = startOfDayUtc.subtract(const Duration(days: 30));
         scansQuery = scansQuery.gte('scanned_at', startOfMonth.toIso8601String());
-        transfersQuery = transfersQuery.gte('transferred_at', startOfMonth.toIso8601String());
       }
 
       if (_selectedBusinessId != 'all') {
         scansQuery = scansQuery.eq('business_id', _selectedBusinessId);
-        transfersQuery = transfersQuery.eq('business_id', _selectedBusinessId);
       }
 
-      final scansResponse = await scansQuery.order('scanned_at', ascending: false).limit(100);
-      
-      List<dynamic> transfersResponse = [];
-      try {
-        transfersResponse = await transfersQuery.order('transferred_at', ascending: false).limit(100);
-      } catch (e) {
-        debugPrint('Tabla de transferencias aún no existe o error: ');
-      }
+      final scansResponse = await scansQuery
+          .order('scanned_at', ascending: false)
+          .range(0, _pageSize - 1);
 
       List<Map<String, dynamic>> combined = [];
       for (var s in scansResponse) {
@@ -90,34 +98,75 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
             ...s
          });
       }
-      for (var t in transfersResponse) {
-         combined.add({
-            'type': 'transfer',
-            'date': t['transferred_at'],
-            ...t
-         });
-      }
-
-      combined.sort((a, b) {
-         final dateA = DateTime.parse(a['date']).toUtc();
-         final dateB = DateTime.parse(b['date']).toUtc();
-         return dateB.compareTo(dateA);
-      });
-
-      if (combined.length > 100) {
-        combined = combined.sublist(0, 100);
-      }
 
       if (mounted) {
         setState(() {
           _activities = combined;
+          _hasMore = combined.length == _pageSize;
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Error loading activities: ');
+      debugPrint('Error loading activities: $e');
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _fetchMoreActivity() async {
+    setState(() => _isFetchingMore = true);
+    try {
+      _currentPage++;
+      final startIndex = _currentPage * _pageSize;
+      final endIndex = startIndex + _pageSize - 1;
+
+      var scansQuery = supabase.from('scans').select('''
+            id, scanned_at, status, is_demo,
+            profiles:user_id (full_name, email),
+            businesses:business_id (name)
+          ''');
+
+      final startOfDayUtc = EcuadorDateUtils.getStartOfDayEcuadorUtc();
+      
+      if (_selectedFilter == 'today') {
+        scansQuery = scansQuery.gte('scanned_at', startOfDayUtc.toIso8601String());
+      } else if (_selectedFilter == 'week') {
+        final startOfWeek = startOfDayUtc.subtract(const Duration(days: 7));
+        scansQuery = scansQuery.gte('scanned_at', startOfWeek.toIso8601String());
+      } else if (_selectedFilter == 'month') {
+        final startOfMonth = startOfDayUtc.subtract(const Duration(days: 30));
+        scansQuery = scansQuery.gte('scanned_at', startOfMonth.toIso8601String());
+      }
+
+      if (_selectedBusinessId != 'all') {
+        scansQuery = scansQuery.eq('business_id', _selectedBusinessId);
+      }
+
+      final scansResponse = await scansQuery
+          .order('scanned_at', ascending: false)
+          .range(startIndex, endIndex);
+
+      List<Map<String, dynamic>> newItems = [];
+      for (var s in scansResponse) {
+         newItems.add({
+            'type': 'scan',
+            'date': s['scanned_at'],
+            ...s
+         });
+      }
+
+      if (mounted) {
+        setState(() {
+          _activities.addAll(newItems);
+          _hasMore = newItems.length == _pageSize;
+          _isFetchingMore = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more activities: $e');
+      if (mounted) {
+        setState(() => _isFetchingMore = false);
       }
     }
   }
@@ -132,9 +181,14 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
         elevation: 0,
         foregroundColor: Colors.black,
       ),
-      body: Column(
-        children: [
-          Container(
+      body: RefreshIndicator(
+        onRefresh: _loadActivity,
+        color: Colors.black,
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.white,
             child: Column(
@@ -142,7 +196,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('\ registros', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                    Text('${_activities.length} registros', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
                     DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _selectedFilter,
@@ -179,7 +233,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                             ..._businessesList.map((b) {
                               return DropdownMenuItem(
                                 value: b['id'] as String,
-                                child: Text(b['name'] != null ? (b['name'].toString().length > 20 ? '\...' : b['name']) : 'Desconocido'),
+                                child: Text(b['name'] != null ? (b['name'].toString().length > 20 ? '${b['name'].toString().substring(0, 20)}...' : b['name']) : 'Desconocido'),
                               );
                             }),
                           ],
@@ -197,59 +251,35 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
               ],
             ),
           ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple)))
-                : _activities.isEmpty
-                ? const Center(child: Text('No hay actividad en este período'))
-                : RefreshIndicator(
-                    onRefresh: _loadActivity,
-                    color: Colors.black,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _activities.length,
-                      itemBuilder: (context, index) {
+        ),
+        if (_isLoading)
+          const SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple)),
+            ),
+          )
+        else if (_activities.isEmpty)
+          const SliverFillRemaining(
+            child: Center(child: Text('No hay actividad en este período')),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                        if (index == _activities.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple)),
+                            ),
+                          );
+                        }
                         final activity = _activities[index];
                         final business = activity['businesses'] ?? {};
                         final businessName = business['name'] ?? 'Negocio Desconocido';
                         final dateStr = activity['date'] != null ? EcuadorDateUtils.formatEcuadorTime(activity['date']) : 'Fecha desconocida';
-                        final isTransfer = activity['type'] == 'transfer';
-
-                        if (isTransfer) {
-                           final fromProfile = activity['from_user'] ?? {};
-                           final toProfile = activity['to_user'] ?? {};
-                           final fromName = fromProfile['full_name'] ?? fromProfile['email'] ?? 'Alguien';
-                           final toName = toProfile['full_name'] ?? toProfile['email'] ?? 'Alguien';
-
-                           return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            elevation: 0,
-                            color: Colors.white,
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.blue.withValues(alpha: 0.1),
-                                child: const Icon(Icons.swap_horiz_rounded, color: Colors.blue),
-                              ),
-                              title: Text('$fromName ? $toName', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 4),
-                                  Text('Traspaso en: $businessName', style: const TextStyle(color: Colors.black54, fontSize: 13)),
-                                  const SizedBox(height: 2),
-                                  Text(dateStr, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                                ],
-                              ),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                                child: const Text('Traspaso', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
-                              ),
-                            ),
-                          );
-                        }
 
                         // Escaneo normal
                         final profile = activity['profiles'] ?? {};
@@ -306,13 +336,13 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                           ),
                         );
                       },
+                      childCount: _activities.length + (_isFetchingMore ? 1 : 0),
                     ),
                   ),
           ),
         ],
       ),
+      ),
     );
   }
 }
-
-

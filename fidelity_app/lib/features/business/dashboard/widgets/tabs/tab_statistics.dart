@@ -64,7 +64,11 @@ class _TabStatisticsState extends ConsumerState<TabStatistics> {
       icon: Icons.card_giftcard,
       color: AppTheme.accentGreen,
       items: rewardUsers,
-      subtitleBuilder: (card) => 'Premios totales reclamados',
+      subtitleBuilder: (card) {
+        final claimed = card['rewards_claimed'] ?? 0;
+        final transferred = card['rewards_transferred'] ?? 0;
+        return '$claimed premios reclamados y $transferred premios transferidos';
+      },
       trailingBuilder: (card) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(

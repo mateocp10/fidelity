@@ -35,7 +35,38 @@ class DashboardRepository {
         ''')
         .eq('business_id', businessId)
         .order('updated_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+        
+    final cards = List<Map<String, dynamic>>.from(response);
+
+    try {
+      final rewardsResponse = await _supabase
+          .from('rewards')
+          .select('user_id, reward_transfer_history(from_user_id)')
+          .eq('business_id', businessId);
+          
+      final rewards = List<Map<String, dynamic>>.from(rewardsResponse);
+      
+      final Map<String, int> transferCounts = {};
+      for (var r in rewards) {
+        if (r['reward_transfer_history'] != null && (r['reward_transfer_history'] as List).isNotEmpty) {
+          var transfers = r['reward_transfer_history'] as List;
+          final fromUserId = transfers.first['from_user_id'] as String;
+          transferCounts[fromUserId] = (transferCounts[fromUserId] ?? 0) + 1;
+        }
+      }
+
+      for (var card in cards) {
+        final userId = card['user_id'] as String;
+        card['rewards_transferred'] = transferCounts[userId] ?? 0;
+      }
+    } catch (e) {
+      // Silently fail if reward_transfer_history is unavailable, default to 0
+      for (var card in cards) {
+        card['rewards_transferred'] = 0;
+      }
+    }
+
+    return cards;
   }
 
   Future<List<Map<String, dynamic>>> fetchPendingScans(String businessId) async {

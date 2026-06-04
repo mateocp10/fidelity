@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/push_notification_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -460,6 +461,10 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                       'WHATSAPP / CELULAR',
                       Icons.phone_android_rounded,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(10),
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                     ),
 
                     const SizedBox(height: 40),
@@ -780,6 +785,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
     bool isRequired = true,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
@@ -800,6 +806,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
             controller: controller,
             keyboardType: keyboardType,
             maxLines: maxLines,
+            inputFormatters: inputFormatters,
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
             decoration: InputDecoration(
               prefixIcon: Icon(icon, size: 20, color: Colors.black26),

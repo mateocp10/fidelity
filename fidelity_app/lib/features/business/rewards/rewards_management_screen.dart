@@ -93,6 +93,8 @@ class _RewardsManagementScreenState extends ConsumerState<RewardsManagementScree
       backgroundColor: Colors.transparent,
       body: state.isLoading && state.rewards.isEmpty
           ? const Center(child: CircularProgressIndicator())
+          : state.error != null
+          ? Center(child: Text(state.error!, style: const TextStyle(color: Colors.red)))
           : state.rewards.isEmpty
           ? Center(
               child: Column(
@@ -205,10 +207,9 @@ class _RewardsManagementScreenState extends ConsumerState<RewardsManagementScree
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      reward['description']
-                                              ?.toString()
-                                              .toUpperCase() ??
-                                          'PREMIO',
+                                      reward['is_transferred'] == true
+                                        ? '${reward['from_name'].toUpperCase()} TRANSFIRIÓ EL PREMIO A $fullName'
+                                        : '$fullName GANÓ PREMIO',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w800,
@@ -217,7 +218,7 @@ class _RewardsManagementScreenState extends ConsumerState<RewardsManagementScree
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'GANADO EL $date',
+                                      'EL $date',
                                       style: const TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.w800,

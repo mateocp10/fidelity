@@ -38,10 +38,29 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  final ScrollController _scrollController = ScrollController();
+  bool _isFetchingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  static const int _pageSize = 20;
+
   @override
   void initState() {
     super.initState();
     _loadUsers();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && 
+          !_isFetchingMore && 
+          _hasMore) {
+        _fetchMoreUsers();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   (DateTime start, DateTime end)? _getDateRange() {
@@ -73,7 +92,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Future<void> _loadUsers() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _currentPage = 0;
+      _hasMore = true;
+      _users = [];
+    });
     try {
       var query = supabase.from('profiles').select('''
             id,
@@ -95,15 +119,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       if (_selectedRoleFilter != 'all') {
         query = query.eq('role', _selectedRoleFilter);
       } else {
-        // En "Todos", excluimos al admin para no mezclar clientes con dueños del sistema
         query = query.neq('role', 'admin');
       }
 
-      final response = await query.order('created_at', ascending: false);
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(0, _pageSize - 1);
 
       if (mounted) {
         setState(() {
           _users = List<Map<String, dynamic>>.from(response);
+          _hasMore = _users.length == _pageSize;
           _isLoading = false;
         });
       }
@@ -111,6 +137,57 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       debugPrint('Error loading users: $e');
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _fetchMoreUsers() async {
+    setState(() => _isFetchingMore = true);
+    try {
+      _currentPage++;
+      final startIndex = _currentPage * _pageSize;
+      final endIndex = startIndex + _pageSize - 1;
+
+      var query = supabase.from('profiles').select('''
+            id,
+            full_name,
+            email,
+            phone,
+            role,
+            is_demo,
+            created_at,
+            businesses!owner_id(name)
+          ''');
+
+      final dateRange = _getDateRange();
+      if (dateRange != null) {
+        query = query.gte('created_at', dateRange.$1.toIso8601String())
+                     .lte('created_at', dateRange.$2.toIso8601String());
+      }
+
+      if (_selectedRoleFilter != 'all') {
+        query = query.eq('role', _selectedRoleFilter);
+      } else {
+        query = query.neq('role', 'admin');
+      }
+
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(startIndex, endIndex);
+
+      final newItems = List<Map<String, dynamic>>.from(response);
+
+      if (mounted) {
+        setState(() {
+          _users.addAll(newItems);
+          _hasMore = newItems.length == _pageSize;
+          _isFetchingMore = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more users: $e');
+      if (mounted) {
+        setState(() => _isFetchingMore = false);
       }
     }
   }
@@ -201,26 +278,33 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         backgroundColor: AppTheme.accentPurple,
         foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          // Barra de Búsqueda
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Buscar por nombre o email...',
-                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+      body: RefreshIndicator(
+        onRefresh: _loadUsers,
+        color: Colors.black,
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  // Barra de Búsqueda
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Buscar por nombre o email...',
+                          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
                   prefixIcon: const Icon(Icons.search, color: AppTheme.accentPurple),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
@@ -361,37 +445,49 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ],
             ),
           ),
-
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple),
-                    ),
-                  )
-                : _filteredUsers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off_rounded, size: 48, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          _searchQuery.isEmpty 
-                              ? 'No hay usuarios registrados' 
-                              : 'No se encontraron usuarios',
-                          style: TextStyle(color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadUsers,
-                    color: Colors.black,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _filteredUsers.length,
-                      itemBuilder: (context, index) {
+        ],
+      ),
+    ),
+    if (_isLoading)
+          const SliverFillRemaining(
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple),
+              ),
+            ),
+          )
+        else if (_filteredUsers.isEmpty)
+          SliverFillRemaining(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    _searchQuery.isEmpty 
+                        ? 'No hay usuarios registrados' 
+                        : 'No se encontraron usuarios',
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                        if (index == _filteredUsers.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple)),
+                            ),
+                          );
+                        }
                         final user = _filteredUsers[index];
                         final role = user['role'] as String?;
                         final roleColor = _getRoleColor(role);
@@ -423,7 +519,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                         user['full_name'] ?? 'Sin nombre',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
+                                          fontSize: 15,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     if (user['is_demo'] == true)
@@ -444,7 +542,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                           ),
                                         ),
                                       ),
-                                    const Spacer(),
+                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
@@ -510,12 +608,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                           children: [
                                             const Icon(Icons.storefront, size: 12, color: AppTheme.accentPurple),
                                             const SizedBox(width: 4),
-                                            Text(
-                                              'Dueño de: ${user['businesses'][0]['name']}',
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppTheme.accentPurple,
+                                            Flexible(
+                                              child: Text(
+                                                'Dueño de: ${user['businesses'][0]['name']}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppTheme.accentPurple,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
@@ -545,6 +646,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
           ),
         ],
+      ),
       ),
     );
   }

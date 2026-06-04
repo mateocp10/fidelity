@@ -116,9 +116,9 @@ class AdminUserRewardsDetailScreen extends StatelessWidget {
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Text(
-                                          '$pointsUsed / $pointsReq pts',
+                                          'PUNTOS QUE REQUIRIÓ: $pointsUsed',
                                           style: const TextStyle(
-                                            fontSize: 11,
+                                            fontSize: 9,
                                             fontWeight: FontWeight.w900,
                                             color: AppTheme.accentPurple,
                                           ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -319,7 +320,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                     const SizedBox(height: 48),
                     _buildField(_fullNameController, 'NOMBRE COMPLETO', Icons.person_outline),
                     const SizedBox(height: 24),
-                    _buildField(_phoneController, 'TELÉFONO', Icons.phone_android_rounded, keyboardType: TextInputType.phone),
+                    _buildField(
+                      _phoneController,
+                      'TELÉFONO',
+                      Icons.phone_android_rounded,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(10),
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                    ),
                     const SizedBox(height: 24),
                     _buildEmailReadOnly(state.email ?? ''),
                     const SizedBox(height: 32),
@@ -397,7 +407,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
   }
 
-  Widget _buildField(TextEditingController controller, String label, IconData icon, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildField(TextEditingController controller, String label, IconData icon, {TextInputType keyboardType = TextInputType.text, List<TextInputFormatter>? inputFormatters}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -406,6 +416,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
           decoration: InputDecoration(
             prefixIcon: Icon(icon, size: 20, color: Colors.black26),

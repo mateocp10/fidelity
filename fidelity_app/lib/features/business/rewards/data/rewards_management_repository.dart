@@ -9,7 +9,7 @@ class RewardsManagementRepository {
   Future<List<Map<String, dynamic>>> getRewards(String businessId) async {
     final rewardsResponse = await _supabase
         .from('rewards')
-        .select('*, description')
+        .select('*, reward_transfer_history(from_user_id)')
         .eq('business_id', businessId)
         .order('earned_at', ascending: false);
 
@@ -20,15 +20,19 @@ class RewardsManagementRepository {
       return [];
     }
 
-    final userIds = rewards
-        .map((r) => r['user_id'] as String)
-        .toSet()
-        .toList();
+    final Set<String> userIds = {};
+    for (var r in rewards) {
+      userIds.add(r['user_id'] as String);
+      if (r['reward_transfer_history'] != null && (r['reward_transfer_history'] as List).isNotEmpty) {
+        var transfers = r['reward_transfer_history'] as List;
+        userIds.add(transfers.first['from_user_id'] as String);
+      }
+    }
 
     final profilesResponse = await _supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
-        .inFilter('id', userIds);
+        .inFilter('id', userIds.toList());
 
     final Map<String, Map<String, dynamic>> profileMap = {
       for (var p in profilesResponse)
@@ -37,11 +41,24 @@ class RewardsManagementRepository {
 
     final mergedRewards = rewards.map((reward) {
       final userId = reward['user_id'] as String;
-      final p = profileMap[userId];
+      final currentOwnerProfile = profileMap[userId];
+      
+      bool isTransferred = false;
+      String fromName = '';
+      if (reward['reward_transfer_history'] != null && (reward['reward_transfer_history'] as List).isNotEmpty) {
+        var transfers = reward['reward_transfer_history'] as List;
+        final fromUserId = transfers.first['from_user_id'] as String;
+        final fromProfile = profileMap[fromUserId];
+        fromName = fromProfile?['full_name'] ?? 'Un usuario';
+        isTransferred = true;
+      }
+
       return {
         ...reward,
-        'display_name': p?['full_name'] ?? 'USUARIO',
-        'avatar_url': p?['avatar_url']
+        'is_transferred': isTransferred,
+        'from_name': fromName,
+        'display_name': currentOwnerProfile?['full_name'] ?? 'USUARIO',
+        'avatar_url': currentOwnerProfile?['avatar_url']
       };
     }).toList();
 

@@ -157,11 +157,12 @@ class _QRManagementScreenState extends State<QRManagementScreen> {
         }
         await Gal.putImage(file.path, album: 'Fidelity');
         if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✅ Imagen guardada en la Galería'),
+              content: Text('✅ Imagen guardada en tu Galería con éxito'),
               backgroundColor: AppTheme.accentGreen,
-              duration: Duration(seconds: 2),
+              duration: Duration(seconds: 3),
             ),
           );
         }
@@ -171,19 +172,11 @@ class _QRManagementScreenState extends State<QRManagementScreen> {
 
       if (mounted) {
         // ignore: deprecated_member_use
-        final result = await Share.shareXFiles(
+        await Share.shareXFiles(
           [XFile(file.path)],
           text: 'Código QR: $label',
           subject: 'QR Fidelity - $label',
         );
-
-        if (result.status == ShareResultStatus.dismissed &&
-            Platform.isWindows) {
-          // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Imagen guardada en: ${file.path}')),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -257,6 +250,17 @@ class _QRManagementScreenState extends State<QRManagementScreen> {
           .replaceAll(RegExp(r'[^\w\s]+'), '')
           .replaceAll(' ', '_');
 
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ PDF generado. Selecciona "Guardar en Archivos" para enviarlo a Documentos.'),
+            backgroundColor: AppTheme.accentGreen,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+
       // sharePdf abre nativamente "Guardar en Archivos" o "Compartir por WhatsApp"
       await Printing.sharePdf(
         bytes: bytes,
@@ -316,7 +320,10 @@ class _QRManagementScreenState extends State<QRManagementScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _shareQRImage(code, label),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _shareQRImage(code, label);
+                      },
                       icon: const Icon(Icons.photo_rounded, size: 16),
                       label: const Text('IMAGEN', style: TextStyle(fontSize: 12, letterSpacing: 0)),
                       style: OutlinedButton.styleFrom(
@@ -327,7 +334,10 @@ class _QRManagementScreenState extends State<QRManagementScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _shareQRPdf(code, label),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _shareQRPdf(code, label);
+                      },
                       icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
                       label: const Text('PDF', style: TextStyle(fontSize: 12, letterSpacing: 0)),
                       style: OutlinedButton.styleFrom(

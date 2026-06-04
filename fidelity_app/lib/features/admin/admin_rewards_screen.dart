@@ -233,161 +233,163 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> {
             indicatorColor: AppTheme.accentPurple,
           ),
         ),
-      body: Column(
-        children: [
-          // Filtros
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.white,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.white,
+                child: Column(
                   children: [
-                    Text(
-                      '${_filteredUsers.length} usuarios ganadores',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedFilter,
-                        icon: const Icon(
-                          Icons.filter_list,
-                          color: Colors.black,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${_filteredUsers.length} usuarios ganadores',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'all',
-                            child: Text('Todos (Últimos 100)'),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedFilter,
+                            icon: const Icon(
+                              Icons.filter_list,
+                              color: Colors.black,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'all',
+                                child: Text('Todos (Últimos 100)'),
+                              ),
+                              DropdownMenuItem(value: 'today', child: Text('Hoy')),
+                              DropdownMenuItem(
+                                value: 'week',
+                                child: Text('Esta Semana'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'month',
+                                child: Text('Este Mes'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _selectedFilter = value;
+                                });
+                                _loadRewards();
+                              }
+                            },
                           ),
-                          DropdownMenuItem(value: 'today', child: Text('Hoy')),
-                          DropdownMenuItem(
-                            value: 'week',
-                            child: Text('Esta Semana'),
+                        ),
+                      ],
+                    ),
+                    // Business Filter
+                    if (_businessesList.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Local:',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          DropdownMenuItem(
-                            value: 'month',
-                            child: Text('Este Mes'),
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedBusinessId,
+                              icon: const Icon(
+                                Icons.store,
+                                color: Colors.black,
+                                size: 18,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black,
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: 'all',
+                                  child: Text('Todos los locales'),
+                                ),
+                                ..._businessesList.map((b) {
+                                  return DropdownMenuItem(
+                                    value: b['id'] as String,
+                                    child: Text(
+                                      b['name'] != null
+                                          ? (b['name'].toString().length > 20
+                                                ? '${b['name'].toString().substring(0, 20)}...'
+                                                : b['name'])
+                                          : 'Desconocido',
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedBusinessId = value;
+                                  });
+                                  _loadRewards();
+                                }
+                              },
+                            ),
                           ),
                         ],
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    // Barra de Búsqueda
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
                         onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedFilter = value;
-                            });
-                            _loadRewards();
-                          }
+                          setState(() {
+                            _searchQuery = value;
+                          });
                         },
+                        decoration: InputDecoration(
+                          hintText: 'Buscar usuario por nombre o email...',
+                          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+                          prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.accentPurple),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _searchQuery = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                // Business Filter
-                if (_businessesList.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Local:',
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedBusinessId,
-                          icon: const Icon(
-                            Icons.store,
-                            color: Colors.black,
-                            size: 18,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black,
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: 'all',
-                              child: Text('Todos los locales'),
-                            ),
-                            ..._businessesList.map((b) {
-                              return DropdownMenuItem(
-                                value: b['id'] as String,
-                                child: Text(
-                                  b['name'] != null
-                                      ? (b['name'].toString().length > 20
-                                            ? '${b['name'].toString().substring(0, 20)}...'
-                                            : b['name'])
-                                      : 'Desconocido',
-                                ),
-                              );
-                            }).toList(),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedBusinessId = value;
-                              });
-                              _loadRewards();
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 12),
-                // Barra de Búsqueda
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Buscar usuario por nombre o email...',
-                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
-                      prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.accentPurple),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _searchQuery = '';
-                                });
-                              },
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple),
-                    ),
-                  )
-                : TabBarView(
+          ];
+        },
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation(AppTheme.accentPurple),
+                ),
+              )
+            : TabBarView(
                     children: [
                       // TAB 1: Usuarios Ganadores
                       _filteredUsers.isEmpty
@@ -474,17 +476,21 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> {
                                                       userName,
                                                       style: const TextStyle(
                                                         fontWeight: FontWeight.bold,
-                                                        fontSize: 16,
+                                                        fontSize: 14,
                                                         color: Colors.black87,
                                                       ),
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
                                                     ),
                                                     if (userEmail.isNotEmpty)
                                                       Text(
                                                         userEmail,
                                                         style: const TextStyle(
-                                                          fontSize: 13,
+                                                          fontSize: 12,
                                                           color: Colors.black54,
                                                         ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
                                                       ),
                                                   ],
                                                 ),
@@ -532,9 +538,7 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> {
                       _buildTransfersList(),
                     ],
                   ),
-          ),
-        ],
-      ),
+        ),
       ),
     );
   }
@@ -614,12 +618,12 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.arrow_downward_rounded, size: 16, color: Colors.orange),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward, size: 14, color: AppTheme.accentPurple),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        'Para: $toName',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.orange),
+                        'A: $toName',
+                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                       ),
                     ),
