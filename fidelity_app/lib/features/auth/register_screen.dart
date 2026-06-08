@@ -105,17 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           
           Future.delayed(1500.ms, () {
             if (mounted) {
-              if (_selectedRole == 'business') {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const CreateBusinessScreen()),
-                  (route) => false,
-                );
-              } else {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
+              Navigator.of(context).popUntil((route) => route.isFirst);
             }
           });
         }
@@ -199,9 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               child: const Text('Entendido'),
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/my_cards_repository.dart';
 
 final myCardsRepositoryProvider = Provider<MyCardsRepository>((ref) {
@@ -12,6 +13,7 @@ class MyCardsState {
   final String userName;
   final String? avatarUrl;
   final String? error;
+  final DateTime? sessionLastViewedAt;
 
   MyCardsState({
     this.isLoading = true,
@@ -19,6 +21,7 @@ class MyCardsState {
     this.userName = '',
     this.avatarUrl,
     this.error,
+    this.sessionLastViewedAt,
   });
 
   MyCardsState copyWith({
@@ -27,6 +30,7 @@ class MyCardsState {
     String? userName,
     String? avatarUrl,
     String? error,
+    DateTime? sessionLastViewedAt,
   }) {
     return MyCardsState(
       isLoading: isLoading ?? this.isLoading,
@@ -34,6 +38,7 @@ class MyCardsState {
       userName: userName ?? this.userName,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       error: error, // Clear error if not provided
+      sessionLastViewedAt: sessionLastViewedAt ?? this.sessionLastViewedAt,
     );
   }
 }
@@ -61,6 +66,13 @@ class MyCardsNotifier extends Notifier<MyCardsState> {
   Future<void> _loadInitialData() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? lastViewedStr = prefs.getString('cards_last_viewed_at');
+      DateTime? sessionLastViewedAt;
+      if (lastViewedStr != null) {
+        sessionLastViewedAt = DateTime.tryParse(lastViewedStr);
+      }
+
       final profile = await _repository.getUserProfile();
       final String userName = profile?['full_name'] ?? '';
       final String? avatarUrl = profile?['avatar_url'];
@@ -72,9 +84,13 @@ class MyCardsNotifier extends Notifier<MyCardsState> {
         userName: userName,
         avatarUrl: avatarUrl,
         cards: cards,
+        sessionLastViewedAt: sessionLastViewedAt,
       );
 
       _setupRealtimeSubscription();
+      
+      // Update shared preferences for the NEXT time they open the app
+      await prefs.setString('cards_last_viewed_at', DateTime.now().toUtc().toIso8601String());
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -116,10 +132,17 @@ class MyCardsNotifier extends Notifier<MyCardsState> {
         final newPoints = (newData['current_points'] as int?) ?? 0;
         final oldPoints = (oldData['current_points'] as int?) ?? 0;
 
-        if (newClaimed > oldClaimed) {
+        final cardId = newData['id'];
+        final existingCard = state.cards.firstWhere((c) => c['id'] == cardId, orElse: () => <String, dynamic>{});
+        final business = existingCard['businesses'] as Map<String, dynamic>?;
+        final requiredPoints = business?['points_required'] as int? ?? 0;
+
+        if (newPoints > oldPoints && newPoints >= requiredPoints && requiredPoints > 0) {
           onCardCompleted?.call();
         } else if (newPoints > oldPoints) {
           onPointEarned?.call();
+        } else if (newClaimed > oldClaimed) {
+          // You could optionally add an onRewardClaimed callback here if needed later
         }
 
         refreshCards(silent: true);

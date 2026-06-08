@@ -124,10 +124,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     final success = await ref.read(userProfileProvider.notifier).deleteAccount();
     if (mounted) {
       if (success) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       } else {
         final error = ref.read(userProfileProvider).error;
         ScaffoldMessenger.of(context).showSnackBar(

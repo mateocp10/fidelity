@@ -158,13 +158,18 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
       latitude: _selectedLatitude,
       longitude: _selectedLongitude,
       categoryId: _selectedCategory?.id.toString(),
-      categoryName: _selectedCategory?.name,
       rewardDescription: _rewardDescriptionController.text,
       pointsRequired: pointsRequired,
     );
   }
 
   void _showSuccessDialog() {
+    final String fullName = _fullNameController.text.trim();
+    final String businessName = _businessNameController.text.trim();
+    
+    final String waMessage = 'Hola, soy $fullName, acabo de crear mi negocio "$businessName" en Fidelity. ¿Me podrían dar información sobre cómo proceder para que mi cuenta sea aprobada y poder comenzar a fidelizar a mis clientes?';
+    final String waUrl = 'https://wa.me/593995371895?text=${Uri.encodeComponent(waMessage)}';
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -208,7 +213,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => launchUrl(Uri.parse('https://wa.me/593995371895')),
+                onPressed: () => launchUrl(Uri.parse(waUrl)),
                 icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                 label: const Text('Contactar por WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
@@ -229,10 +234,6 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
               onPressed: () {
                 Navigator.pop(ctx);
                 ref.read(authStateProvider.notifier).logout();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,

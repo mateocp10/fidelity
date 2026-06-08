@@ -58,7 +58,6 @@ class BusinessRepository {
     double? latitude,
     double? longitude,
     String? categoryId,
-    String? categoryName,
     required String rewardDescription,
     required int pointsRequired,
   }) async {
@@ -71,7 +70,6 @@ class BusinessRepository {
       'latitude': latitude,
       'longitude': longitude,
       'category_id': categoryId,
-      'category': categoryName,
       'reward_description': rewardDescription,
       'points_required': pointsRequired,
       'cooldown_hours': 4,

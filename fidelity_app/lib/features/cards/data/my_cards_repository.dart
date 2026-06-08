@@ -35,6 +35,7 @@ class MyCardsRepository {
           )
         ''')
         .eq('user_id', userId)
+        .order('last_scan_at', ascending: false, nullsFirst: false)
         .order('updated_at', ascending: false);
     
     return List<Map<String, dynamic>>.from(response);

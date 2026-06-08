@@ -31,7 +31,7 @@ class BusinessDashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<BusinessDashboardScreen> createState() => _BusinessDashboardScreenState();
 }
 
-class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScreen> {
+class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScreen> with WidgetsBindingObserver {
   static bool _welcomeShown = false;
   
   StreamSubscription<void>? _scansSub;
@@ -40,8 +40,12 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
   @override
   void initState() {
     super.initState();
-    // La carga inicial la dispara el provider en el build, no hace falta llamarla aquí
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Forzamos una recarga inicial silenciosa por si venimos de una notificación push
+    // en background donde el provider seguía vivo pero desactualizado.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(dashboardProvider.notifier).loadData(silent: true);
       _checkWelcomeMessage();
     });
 
@@ -59,9 +63,21 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scansSub?.cancel();
     _rewardsSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Si la app vuelve del background (ej. haciendo click en una notificación),
+      // forzamos la actualización de datos para no quedarnos con info vieja.
+      if (mounted) {
+        ref.read(dashboardProvider.notifier).loadData(silent: true);
+      }
+    }
   }
 
   void _checkWelcomeMessage() async {

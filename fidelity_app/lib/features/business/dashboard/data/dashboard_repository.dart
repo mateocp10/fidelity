@@ -95,14 +95,6 @@ class DashboardRepository {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  Future<Map<String, dynamic>?> fetchStats(String businessId) async {
-    return await _supabase
-        .from('business_stats')
-        .select('*')
-        .eq('business_id', businessId)
-        .maybeSingle();
-  }
-
   Future<void> addManualPoints({
     required String userId,
     required String businessId,

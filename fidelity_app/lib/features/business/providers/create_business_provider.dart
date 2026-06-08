@@ -45,7 +45,6 @@ class CreateBusinessNotifier extends Notifier<CreateBusinessState> {
     required double? latitude,
     required double? longitude,
     String? categoryId,
-    String? categoryName,
     required String rewardDescription,
     required int pointsRequired,
   }) async {
@@ -92,7 +91,6 @@ class CreateBusinessNotifier extends Notifier<CreateBusinessState> {
         latitude: latitude,
         longitude: longitude,
         categoryId: categoryId,
-        categoryName: categoryName,
         rewardDescription: rewardDescription.trim(),
         pointsRequired: pointsRequired,
       );

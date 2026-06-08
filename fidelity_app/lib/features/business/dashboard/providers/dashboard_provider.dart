@@ -12,7 +12,6 @@ class DashboardState {
   final List<Map<String, dynamic>> customers;
   final List<Map<String, dynamic>> pendingScans;
   final List<Map<String, dynamic>> pendingRewards;
-  final Map<String, dynamic>? stats;
   final String ownerName;
 
   DashboardState({
@@ -24,7 +23,6 @@ class DashboardState {
     this.customers = const [],
     this.pendingScans = const [],
     this.pendingRewards = const [],
-    this.stats,
     this.ownerName = '',
   });
 
@@ -37,7 +35,6 @@ class DashboardState {
     List<Map<String, dynamic>>? customers,
     List<Map<String, dynamic>>? pendingScans,
     List<Map<String, dynamic>>? pendingRewards,
-    Map<String, dynamic>? stats,
     String? ownerName,
   }) {
     return DashboardState(
@@ -49,7 +46,6 @@ class DashboardState {
       customers: customers ?? this.customers,
       pendingScans: pendingScans ?? this.pendingScans,
       pendingRewards: pendingRewards ?? this.pendingRewards,
-      stats: stats ?? this.stats,
       ownerName: ownerName ?? this.ownerName,
     );
   }
@@ -116,7 +112,6 @@ class DashboardNotifier extends Notifier<DashboardState> {
       final customers = await repo.fetchCustomers(businessId);
       final pendingScans = await repo.fetchPendingScans(businessId);
       final pendingRewards = await repo.fetchPendingRewards(businessId);
-      final stats = await repo.fetchStats(businessId);
 
       state = state.copyWith(
         isLoading: false,
@@ -124,7 +119,6 @@ class DashboardNotifier extends Notifier<DashboardState> {
         customers: customers,
         pendingScans: pendingScans,
         pendingRewards: pendingRewards,
-        stats: stats,
         ownerName: ownerName,
       );
 

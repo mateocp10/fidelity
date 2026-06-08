@@ -41,9 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.user != null && mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AuthWrapper()),
-        );
+        // AuthWrapper automáticamente detectará el inicio de sesión y cambiará de pantalla.
+        // No hacemos pushReplacement para no recargar el sistema.
       }
     } on AuthException catch (e) {
       if (mounted) {
@@ -72,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } finally {
-      if (mounted) {
+      if (mounted && supabase.auth.currentUser == null) {
         setState(() => _isLoading = false);
       }
     }

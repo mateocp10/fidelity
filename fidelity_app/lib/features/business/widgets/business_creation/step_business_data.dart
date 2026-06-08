@@ -66,29 +66,73 @@ class StepBusinessData extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          DropdownButtonFormField<BusinessCategory>(
-            value: selectedCategory,
-            decoration: InputDecoration(
-              labelText: 'Categoría',
-              prefixIcon: const Icon(Icons.category, color: Colors.black),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            isExpanded: true,
-            items: categories
-                .map(
-                  (c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(
-                      c.name.toUpperCase(),
-                      style: const TextStyle(fontSize: 12),
+          Autocomplete<BusinessCategory>(
+            initialValue: TextEditingValue(text: selectedCategory?.name.toUpperCase() ?? ''),
+            displayStringForOption: (BusinessCategory option) => option.name.toUpperCase(),
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return categories;
+              }
+              return categories.where((BusinessCategory option) {
+                return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              });
+            },
+            onSelected: (BusinessCategory selection) {
+              onCategoryChanged(selection);
+            },
+            fieldViewBuilder: (BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
+              return TextFormField(
+                controller: textEditingController,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  labelText: 'Categoría (Busca o selecciona)',
+                  prefixIcon: const Icon(Icons.category, color: Colors.black),
+                  suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onChanged: (value) {
+                  if (selectedCategory != null && value.toLowerCase() != selectedCategory!.name.toLowerCase()) {
+                    // Reset if user types something else
+                    // (Requires logic update in parent if we want to clear it, but checking in validator is enough)
+                  }
+                },
+                validator: (String? value) {
+                  if (selectedCategory == null || value == null || value.isEmpty) {
+                    return 'Selecciona una categoría válida de la lista';
+                  }
+                  return null;
+                },
+              );
+            },
+            optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<BusinessCategory> onSelected, Iterable<BusinessCategory> options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 8.0,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    // We let it size based on the parent's constraints mostly, but give it a max width
+                    width: MediaQuery.of(context).size.width - 48, 
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final BusinessCategory option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(option.name.toUpperCase(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          onTap: () => onSelected(option),
+                        );
+                      },
                     ),
                   ),
-                )
-                .toList(),
-            onChanged: (v) => onCategoryChanged(v!),
-            validator: (v) => v == null ? 'Selecciona una categoría' : null,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
 

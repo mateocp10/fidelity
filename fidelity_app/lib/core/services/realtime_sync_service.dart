@@ -12,18 +12,18 @@ class RealtimeSyncService {
 
   // StreamControllers para cada tipo de entidad que queremos escuchar.
   // Usamos broadcast para que múltiples pantallas puedan suscribirse simultáneamente.
-  final _scansController = StreamController<void>.broadcast();
-  final _rewardsController = StreamController<void>.broadcast();
-  final _loyaltyCardsController = StreamController<void>.broadcast();
-  final _rewardTransfersController = StreamController<void>.broadcast();
-  final _qrCodesController = StreamController<void>.broadcast();
+  final _scansController = StreamController<Map<String, dynamic>?>.broadcast();
+  final _rewardsController = StreamController<Map<String, dynamic>?>.broadcast();
+  final _loyaltyCardsController = StreamController<Map<String, dynamic>?>.broadcast();
+  final _rewardTransfersController = StreamController<Map<String, dynamic>?>.broadcast();
+  final _qrCodesController = StreamController<Map<String, dynamic>?>.broadcast();
 
   // Exponemos los streams
-  Stream<void> get onScansChanged => _scansController.stream;
-  Stream<void> get onRewardsChanged => _rewardsController.stream;
-  Stream<void> get onLoyaltyCardsChanged => _loyaltyCardsController.stream;
-  Stream<void> get onRewardTransfersChanged => _rewardTransfersController.stream;
-  Stream<void> get onQrCodesChanged => _qrCodesController.stream;
+  Stream<Map<String, dynamic>?> get onScansChanged => _scansController.stream;
+  Stream<Map<String, dynamic>?> get onRewardsChanged => _rewardsController.stream;
+  Stream<Map<String, dynamic>?> get onLoyaltyCardsChanged => _loyaltyCardsController.stream;
+  Stream<Map<String, dynamic>?> get onRewardTransfersChanged => _rewardTransfersController.stream;
+  Stream<Map<String, dynamic>?> get onQrCodesChanged => _qrCodesController.stream;
 
   bool _isInitialized = false;
 
@@ -40,7 +40,7 @@ class RealtimeSyncService {
           table: 'scans',
           callback: (payload) {
             debugPrint('🔄 Realtime Sync: changes in scans');
-            _scansController.add(null);
+            _scansController.add(payload.newRecord);
           },
         )
         .onPostgresChanges(
@@ -49,7 +49,7 @@ class RealtimeSyncService {
           table: 'rewards',
           callback: (payload) {
             debugPrint('🔄 Realtime Sync: changes in rewards');
-            _rewardsController.add(null);
+            _rewardsController.add(payload.newRecord);
           },
         )
         .onPostgresChanges(
@@ -58,7 +58,7 @@ class RealtimeSyncService {
           table: 'loyalty_cards',
           callback: (payload) {
             debugPrint('🔄 Realtime Sync: changes in loyalty_cards');
-            _loyaltyCardsController.add(null);
+            _loyaltyCardsController.add(payload.newRecord);
           },
         )
         .onPostgresChanges(
@@ -67,7 +67,7 @@ class RealtimeSyncService {
           table: 'reward_transfer_history',
           callback: (payload) {
             debugPrint('🔄 Realtime Sync: changes in reward_transfer_history');
-            _rewardTransfersController.add(null);
+            _rewardTransfersController.add(payload.newRecord);
           },
         )
         .onPostgresChanges(
@@ -76,7 +76,7 @@ class RealtimeSyncService {
           table: 'qr_codes',
           callback: (payload) {
             debugPrint('🔄 Realtime Sync: changes in qr_codes');
-            _qrCodesController.add(null);
+            _qrCodesController.add(payload.newRecord);
           },
         )
         .subscribe((status, [error]) {

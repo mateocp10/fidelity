@@ -557,7 +557,7 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
                             children: [
                               const SizedBox(height: 4),
                               Text(
-                                'Categoría: ${business['business_categories']?['name'] ?? business['category'] ?? 'Otra'}',
+                                'Categoría: ${business['business_categories']?['name'] ?? 'Otra'}',
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                               ),
                               const SizedBox(height: 8),

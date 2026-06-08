@@ -81,33 +81,33 @@ async function broadcastToAdmins(title: string, body: string, route: string) {
 async function handleProfiles(payload: WebhookPayload) {
   if (payload.type === 'INSERT') {
     const profile = payload.record;
-    if (profile.role === 'client') {
-      // Esperar 1 segundo para que la app (Dart) tenga tiempo de hacer el upsert
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Consultar el perfil actualizado
-      const { data: updatedProfile } = await supabase.from('profiles').select('full_name, role').eq('id', profile.id).single();
-      
-      let name = updatedProfile?.full_name || profile.full_name;
-      let actualRole = updatedProfile?.role || profile.role;
-      
-      // Fallback final a metadata
-      if (!name) {
-        try {
-          const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
-          name = userData?.user?.user_metadata?.full_name || userData?.user?.user_metadata?.name;
-          actualRole = actualRole === 'client' ? (userData?.user?.user_metadata?.role || actualRole) : actualRole;
-        } catch (e) {
-          console.error('Error fetching user meta:', e);
-        }
+    
+    // Esperar 1 segundo para que la app (Dart) tenga tiempo de hacer el upsert
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Consultar el perfil actualizado
+    const { data: updatedProfile } = await supabase.from('profiles').select('full_name, role').eq('id', profile.id).single();
+    
+    let name = updatedProfile?.full_name || profile.full_name;
+    let actualRole = updatedProfile?.role || profile.role;
+    
+    // Fallback final a metadata
+    if (!name) {
+      try {
+        const { data: userData } = await supabase.auth.admin.getUserById(profile.id);
+        name = userData?.user?.user_metadata?.full_name || userData?.user?.user_metadata?.name;
+        actualRole = actualRole === 'client' ? (userData?.user?.user_metadata?.role || actualRole) : actualRole;
+      } catch (e) {
+        console.error('Error fetching user meta:', e);
       }
-      
-      if (actualRole === 'business') {
-        return; // No enviar notificación de cliente si en realidad es negocio
-      }
-      
-      name = name || 'Un nuevo usuario';
+    }
+    
+    name = name || 'Un nuevo usuario';
+    
+    if (actualRole === 'client') {
       await broadcastToAdmins('Nuevo Cliente', `${name} creó cuenta como cliente.`, '/admin_users');
+    } else if (actualRole === 'business' || actualRole === 'owner') {
+      await broadcastToAdmins('Nueva Cuenta de Dueño', `${name} acaba de crear cuenta con rol dueño.`, '/admin_users');
     }
   }
 }

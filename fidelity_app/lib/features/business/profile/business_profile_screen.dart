@@ -202,7 +202,6 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
             'description': _businessDescriptionController.text.trim(),
             'logo_url': finalLogoUrl,
             'category_id': _selectedCategory?.id,
-            'category': _selectedCategory?.name,
             'address': _address,
             'latitude': _latitude,
             'longitude': _longitude,
@@ -493,34 +492,73 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<BusinessCategory>(
-                          value: _selectedCategory,
-                          isExpanded: true,
-                          items: _categories
-                              .map(
-                                (cat) => DropdownMenuItem(
-                                  value: cat,
-                                  child: Text(
-                                    cat.name.toUpperCase(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (cat) =>
-                              setState(() => _selectedCategory = cat),
-                        ),
-                      ),
+                    Autocomplete<BusinessCategory>(
+                      initialValue: TextEditingValue(text: _selectedCategory?.name.toUpperCase() ?? ''),
+                      displayStringForOption: (BusinessCategory option) => option.name.toUpperCase(),
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty) {
+                          return _categories;
+                        }
+                        return _categories.where((BusinessCategory option) {
+                          return option.name.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                        });
+                      },
+                      onSelected: (BusinessCategory selection) {
+                        setState(() => _selectedCategory = selection);
+                      },
+                      fieldViewBuilder: (BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
+                        return TextFormField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(Icons.category_rounded, size: 20, color: Colors.black26),
+                            suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                            filled: true,
+                            fillColor: Colors.black.withValues(alpha: 0.04),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                          ),
+                          validator: (String? value) {
+                            if (_selectedCategory == null || value == null || value.isEmpty) {
+                              return 'Selecciona una categoría válida';
+                            }
+                            return null;
+                          },
+                        );
+                      },
+                      optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<BusinessCategory> onSelected, Iterable<BusinessCategory> options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 8.0,
+                            borderRadius: BorderRadius.circular(20),
+                            clipBehavior: Clip.antiAlias,
+                            child: Container(
+                              constraints: const BoxConstraints(maxHeight: 250),
+                              width: MediaQuery.of(context).size.width - 48,
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final BusinessCategory option = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(option.name.toUpperCase(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                                    onTap: () => onSelected(option),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
 
                     const SizedBox(height: 24),

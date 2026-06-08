@@ -190,14 +190,19 @@ class _TabCustomersState extends ConsumerState<TabCustomers> {
                           CircleAvatar(
                             radius: 28,
                             backgroundColor: accentColor.withValues(alpha: 0.1),
-                            child: Text(
-                              (profile?['full_name']?[0] ?? '?').toUpperCase(),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: accentColor,
-                                fontSize: 20,
-                              ),
-                            ),
+                            backgroundImage: profile?['avatar_url'] != null
+                                ? NetworkImage(profile!['avatar_url'])
+                                : null,
+                            child: profile?['avatar_url'] == null
+                                ? Text(
+                                    (profile?['full_name']?[0] ?? '?').toUpperCase(),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      color: accentColor,
+                                      fontSize: 20,
+                                    ),
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 16),
                           Expanded(

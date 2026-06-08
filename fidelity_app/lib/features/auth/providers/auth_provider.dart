@@ -114,10 +114,7 @@ class AuthNotifier extends Notifier<AuthStateStatus> {
     
     final context = globalNavigatorKey.currentContext;
     if (context != null && context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 }

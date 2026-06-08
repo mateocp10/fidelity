@@ -11,6 +11,7 @@ import '../../features/admin/admin_users_screen.dart';
 import '../../features/admin/admin_businesses_screen.dart';
 import '../../features/admin/admin_activity_screen.dart';
 import '../../features/admin/admin_rewards_screen.dart';
+import '../widgets/global_celebration_dialog.dart';
 
 class PushNotificationService {
   static final _firebaseMessaging = FirebaseMessaging.instance;
@@ -113,44 +114,46 @@ class PushNotificationService {
   }
 
   static void _handleRouting(String? route) {
+    // Eliminar la notificación apenas el usuario la toque
+    _localNotifications.cancelAll();
+
     if (route == null) return;
     
     final context = globalNavigatorKey.currentContext;
     if (context == null) return;
 
-    if (route == '/business_dashboard' || route == 'pending_scans') {
-       Navigator.of(context).pushAndRemoveUntil(
-         MaterialPageRoute(builder: (_) => const BusinessDashboardScreen(initialIndex: 1)),
-         (r) => false,
-       );
-    } else if (route == '/business_dashboard/rewards') {
-       Navigator.of(context).pushAndRemoveUntil(
-         MaterialPageRoute(builder: (_) => const BusinessDashboardScreen(initialIndex: 2)),
-         (r) => false,
-       );
-    } else if (route == '/my_cards') {
-       Navigator.of(context).pushAndRemoveUntil(
-         MaterialPageRoute(builder: (_) => const MyCardsScreen()),
-         (r) => false,
-       );
-    } else if (route == '/admin_dashboard') {
-       Navigator.of(context).pushAndRemoveUntil(
-         MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-         (r) => false,
-       );
-    } else if (route == '/admin_users') {
-       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
+    // Práctica de grado empresarial: NUNCA destruir el AuthWrapper raíz con pushAndRemoveUntil.
+    // Esto rompía el árbol de widgets y trababa la app cuando cambiaba el estado de autenticación
+    // o al encadenar navegaciones múltiples muy rápidas.
+    // Siempre limpiamos la pila de navegación de forma segura hasta llegar al Root.
+    Navigator.of(context).popUntil((r) => r.isFirst);
+
+    // Dependiendo de la ruta, pusheamos la pantalla deseada sobre el Dashboard/Root actual.
+    // Las rutas raíz como /my_cards, /admin_dashboard, o /business_dashboard ya están renderizadas
+    // por defecto en el AuthWrapper según el rol, por lo que popUntil(isFirst) es suficiente.
+    if (route == '/admin_users') {
        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminUsersScreen()));
     } else if (route == '/admin_businesses') {
-       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminBusinessesScreen()));
     } else if (route == '/admin_activity') {
-       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminActivityScreen()));
     } else if (route == '/admin_rewards') {
-       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()), (r) => false);
        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminRewardsScreen()));
+    } else if (route == '/transfer_received') {
+       // La ruta raíz es MyCards para el cliente, así que popUntil(isFirst) ya lo deja ahí.
+       // Esperamos a que la navegación termine y lanzamos la animación.
+       Future.delayed(const Duration(milliseconds: 500), () {
+         if (globalNavigatorKey.currentContext != null) {
+           GlobalCelebrationDialog.show(
+             globalNavigatorKey.currentContext!,
+             title: '¡TE HAN TRANSFERIDO!',
+             message: '¡Acabas de recibir un premio de un amigo! Revisa tus tarjetas.',
+             iconType: 'transfer',
+           );
+         }
+       });
     }
+    // Nota: Para /business_dashboard y /my_cards el AuthWrapper ya hace el trabajo por nosotros.
   }
 
   static Future<void> _saveTokenToDatabase(String token) async {

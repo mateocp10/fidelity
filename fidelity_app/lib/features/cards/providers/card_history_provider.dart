@@ -65,14 +65,16 @@ class CardHistoryState {
 
 class CardHistoryNotifier extends Notifier<CardHistoryState> {
   late String _cardId;
+  late String _businessId;
 
   @override
   CardHistoryState build() {
     return CardHistoryState();
   }
 
-  void init(String cardId) {
+  void init(String cardId, String businessId) {
     _cardId = cardId;
+    _businessId = businessId;
     Future.microtask(() => loadHistory());
   }
 
@@ -80,7 +82,7 @@ class CardHistoryNotifier extends Notifier<CardHistoryState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final results = await ref.read(cardHistoryRepositoryProvider).fetchHistory(_cardId, state.dateRange);
+      final results = await ref.read(cardHistoryRepositoryProvider).fetchHistory(_cardId, _businessId, state.dateRange);
       state = state.copyWith(
         isLoading: false,
         scans: results[0],

@@ -11,6 +11,7 @@ import 'admin_users_screen.dart';
 import 'admin_activity_screen.dart';
 import 'admin_rewards_screen.dart';
 import 'admin_qr_stats_screen.dart';
+import 'admin_categories_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/providers/auth_provider.dart';
 
@@ -345,7 +346,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             Expanded(
                               child: _MetricCard(
                                 title: 'Premios',
-                                value: '$_totalRewards|$_approvedRewards|$_rejectedRewards',
+                                value: _totalRewards.toString(),
                                 icon: Icons.card_giftcard,
                                 color: AppTheme.accentGreen,
                                 onTap: () {
@@ -389,6 +390,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           },
                         )
                         .animate(delay: 300.ms)
+                        .fadeIn(duration: AppTheme.animDurationStandard)
+                        .slideY(
+                          begin: AppTheme.animSlideYBegin,
+                          curve: AppTheme.animCurveStandard,
+                        ),
+                    _ModuleListTile(
+                          title: 'Gestión de Categorías',
+                          subtitle: 'Agregar o eliminar categorías de negocios',
+                          icon: Icons.category_rounded,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const AdminCategoriesScreen(),
+                              ),
+                            );
+                          },
+                        )
+                        .animate(delay: 350.ms)
                         .fadeIn(duration: AppTheme.animDurationStandard)
                         .slideY(
                           begin: AppTheme.animSlideYBegin,
@@ -522,7 +541,7 @@ class _MetricCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            title == 'Premios' ? value.split('|')[0] : value,
+            value,
             style: GoogleFonts.anton(
               fontSize: 24,
               fontWeight: FontWeight.w400,
@@ -530,26 +549,7 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(title, style: TextStyle(fontSize: 14, color: Colors.black54)),
-          if (title == 'Premios') ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                _StatusIndicator(
-                  label: 'Apr',
-                  count: value.split('|').length > 1 ? value.split('|')[1] : '0',
-                  color: AppTheme.accentGreen,
-                ),
-                _StatusIndicator(
-                  label: 'Rej',
-                  count: value.split('|').length > 2 ? value.split('|')[2] : '0',
-                  color: Colors.red,
-                ),
-              ],
-            ),
-          ],
+          Text(title, style: const TextStyle(fontSize: 14, color: Colors.black54)),
         ],
       ),
     );

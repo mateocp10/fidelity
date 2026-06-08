@@ -10,6 +10,10 @@ import '../cards/my_cards_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/push_notification_service.dart';
+import '../../core/services/realtime_sync_service.dart';
+import '../../core/widgets/global_celebration_dialog.dart';
+import '../../core/providers/supabase_provider.dart';
+import 'dart:async';
 import 'providers/auth_provider.dart';
 
 class AuthWrapper extends ConsumerStatefulWidget {
@@ -20,7 +24,8 @@ class AuthWrapper extends ConsumerStatefulWidget {
 }
 
 class _AuthWrapperState extends ConsumerState<AuthWrapper> {
-  
+  StreamSubscription<void>? _transferSub;
+
   @override
   void initState() {
     super.initState();
@@ -28,6 +33,25 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
       // Re-verificamos la autenticación por si acaso, aunque el Provider se inicializa solo
       ref.read(authStateProvider.notifier).checkAuth();
     });
+
+    _transferSub = RealtimeSyncService().onRewardTransfersChanged.listen((payload) {
+      if (payload == null) return;
+      final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
+      if (payload['to_user_id'] == currentUserId && currentUserId != null) {
+        GlobalCelebrationDialog.show(
+          context,
+          title: '¡TE HAN TRANSFERIDO!',
+          message: '¡Acabas de recibir un premio de un amigo! Revisa tus tarjetas.',
+          iconType: 'transfer',
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _transferSub?.cancel();
+    super.dispose();
   }
 
   void _showInactiveAccountDialog() {

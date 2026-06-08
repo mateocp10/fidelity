@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import 'providers/my_cards_provider.dart';
 import 'dart:async';
 import '../../core/services/realtime_sync_service.dart';
+import '../../core/widgets/global_celebration_dialog.dart';
 
 class MyCardsScreen extends ConsumerStatefulWidget {
   const MyCardsScreen({super.key});
@@ -30,7 +31,7 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _confettiController = ConfettiController(duration: const Duration(seconds: 5));
 
     // Bind real-time event handlers
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -145,89 +146,11 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
 
   void _showCelebrationDialog() {
     if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(48)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 20),
-            Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentGreen.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.celebration_rounded,
-                    size: 64,
-                    color: AppTheme.accentGreen,
-                  ),
-                )
-                .animate(onPlay: (c) => c.repeat())
-                .scale(
-                  begin: const Offset(0.8, 0.8),
-                  end: const Offset(1.2, 1.2),
-                  duration: 600.ms,
-                  curve: Curves.elasticOut,
-                )
-                .then()
-                .scale(
-                  begin: const Offset(1.2, 1.2),
-                  end: const Offset(0.8, 0.8),
-                ),
-            const SizedBox(height: 32),
-            Text(
-              '¡FELICIDADES!',
-              style: GoogleFonts.anton(
-                fontSize: 24,
-                fontWeight: FontWeight.w400,
-                letterSpacing: 2,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '¡HAS COMPLETADO TU TARJETA!',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: AppTheme.accentPurple,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Ya puedes acercarte al local para reclamar tu premio. ¡Disfrútalo!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.black45,
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-        actions: [
-          Center(
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 48,
-                  vertical: 16,
-                ),
-              ),
-              child: const Text('¡GENIAL!'),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
+    GlobalCelebrationDialog.show(
+      context,
+      title: '¡FELICIDADES!',
+      message: '¡Felicidades! Espera o acércate al local para que aprueben tu premio.',
+      iconType: 'reward',
     );
   }
 
@@ -385,6 +308,7 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
                     return _LoyaltyCardItem(
                       card: state.cards[index],
                       index: index,
+                      sessionLastViewedAt: state.sessionLastViewedAt,
                       onTap: () {
                         final card = state.cards[index];
                         final business = card['businesses'];
@@ -489,11 +413,13 @@ class _LoyaltyCardItem extends StatelessWidget {
   final Map<String, dynamic> card;
   final int index;
   final VoidCallback onTap;
+  final DateTime? sessionLastViewedAt;
 
   const _LoyaltyCardItem({
     required this.card,
     required this.index,
     required this.onTap,
+    this.sessionLastViewedAt,
   });
 
   @override
@@ -512,6 +438,21 @@ class _LoyaltyCardItem extends StatelessWidget {
       AppTheme.accentGreen,
     ];
     final accentColor = accents[index % accents.length];
+
+    final String? lastScanStr = card['last_scan_at'];
+    bool isRecentlyUpdated = false;
+    if (lastScanStr != null) {
+      final lastScan = DateTime.tryParse(lastScanStr);
+      if (lastScan != null) {
+        if (sessionLastViewedAt != null) {
+          isRecentlyUpdated = lastScan.isAfter(sessionLastViewedAt!);
+        } else {
+          // Si es la primera vez que abre la app en su vida, usamos la regla de 5 mins por si acaso
+          final diff = DateTime.now().toUtc().difference(lastScan);
+          isRecentlyUpdated = diff.inMinutes < 5;
+        }
+      }
+    }
 
     return GestureDetector(
           onTap: onTap,
@@ -550,8 +491,7 @@ class _LoyaltyCardItem extends StatelessWidget {
                       child: business['logo_url'] == null
                           ? Icon(
                               AppTheme.getCategoryIcon(
-                                business['business_categories']?['name'] ??
-                                    business['category'],
+                                business['business_categories']?['name'] ?? 'Otra',
                               ),
                               color: accentColor,
                               size: 32,
@@ -563,11 +503,45 @@ class _LoyaltyCardItem extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            business['name'].toString().toUpperCase(),
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  business['name'].toString().toUpperCase(),
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              if (isRecentlyUpdated)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentGreen.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 0.5), width: 1),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.bolt_rounded, color: AppTheme.accentGreen, size: 12),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        '¡NUEVO!',
+                                        style: TextStyle(
+                                          color: AppTheme.accentGreen,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ).animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(begin: 1.0, end: 1.05, duration: 800.ms),
+                            ],
                           ),
                           if (business['reward_description'] != null)
                             Text(

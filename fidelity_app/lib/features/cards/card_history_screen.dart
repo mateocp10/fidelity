@@ -27,7 +27,7 @@ class _CardHistoryScreenState extends ConsumerState<CardHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(cardHistoryProvider.notifier).init(widget.loyaltyCardId);
+    ref.read(cardHistoryProvider.notifier).init(widget.loyaltyCardId, widget.businessId);
   }
 
   Future<void> _selectDateRange(DateTimeRange? currentRange) async {
@@ -444,6 +444,16 @@ class _CardHistoryScreenState extends ConsumerState<CardHistoryScreen> {
         } else if (status == 'rejected') {
           statusColor = AppTheme.accentPink;
           statusLabel = 'RECHAZADO';
+        } else if (status == 'transferred_out') {
+          statusColor = AppTheme.accentPurple;
+          statusLabel = 'TRANSFERIDO';
+        }
+
+        // Get transfer info if available
+        String? transferredToName;
+        if (!isScan && item['reward_transfer_history'] != null && (item['reward_transfer_history'] as List).isNotEmpty) {
+          final transferInfo = (item['reward_transfer_history'] as List).first;
+          transferredToName = transferInfo['profiles']?['full_name'] ?? 'Usuario';
         }
 
         return Container(
@@ -592,6 +602,31 @@ class _CardHistoryScreenState extends ConsumerState<CardHistoryScreen> {
                         ),
                     ],
                   ),
+                  if (!isScan && transferredToName != null) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.subdirectory_arrow_right_rounded,
+                          size: 14,
+                          color: AppTheme.accentPurple,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Transferido a: $transferredToName',
+                            style: const TextStyle(
+                              color: AppTheme.accentPurple,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (isScan &&
                       item['businesses'] != null &&
                       item['businesses']['name'] != null) ...[

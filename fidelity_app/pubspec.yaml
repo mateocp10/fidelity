@@ -41,6 +41,7 @@ dependencies:
   flutter_image_compress: ^2.2.0
   flutter_local_notifications: ^17.1.2
   http: ^1.6.0
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
