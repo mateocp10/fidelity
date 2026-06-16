@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'register_screen.dart';
 import 'auth_wrapper.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/auth_error_translator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -44,24 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
         // AuthWrapper automáticamente detectará el inicio de sesión y cambiará de pantalla.
         // No hacemos pushReplacement para no recargar el sistema.
       }
-    } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(AuthErrorTranslator.translate(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -92,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(AuthErrorTranslator.translate(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

@@ -127,7 +127,7 @@ async function handleScans(payload: WebhookPayload) {
 
   if (payload.type === 'INSERT' && scan.status === 'pending') {
     if (ownerToken) {
-      await sendPushNotification(ownerToken, '¡Nuevo escaneo!', `${clientName} hizo un escaneo, pendiente de aprobar.`, { route: '/business_dashboard' });
+      await sendPushNotification(ownerToken, '¡Nuevo escaneo!', `${clientName} hizo un escaneo, pendiente de aprobar.`, { route: '/business_dashboard/pending' });
     }
     await broadcastToAdmins('Nuevo Escaneo 📸', `${clientName} escaneó un QR en ${businessName}.`, '/admin_activity');
   }

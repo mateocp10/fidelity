@@ -27,13 +27,22 @@ class BusinessDashboardScreen extends ConsumerStatefulWidget {
   final int initialIndex;
   const BusinessDashboardScreen({super.key, this.initialIndex = 0});
 
+  /// Canal para que servicios externos (ej. el push de notificaciones) pidan
+  /// que el dashboard raíz —que ya está vivo— salte a una pestaña concreta.
+  static final ValueNotifier<int?> tabRequest = ValueNotifier<int?>(null);
+
+  /// Pide que el dashboard activo se mueva a la pestaña [index].
+  static void goToTab(int index) => tabRequest.value = index;
+
   @override
   ConsumerState<BusinessDashboardScreen> createState() => _BusinessDashboardScreenState();
 }
 
-class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScreen> with WidgetsBindingObserver {
+class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScreen> with WidgetsBindingObserver, TickerProviderStateMixin {
   static bool _welcomeShown = false;
-  
+
+  late final TabController _tabController;
+
   StreamSubscription<void>? _scansSub;
   StreamSubscription<void>? _rewardsSub;
 
@@ -41,12 +50,17 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    
+
+    _tabController = TabController(length: 5, vsync: this, initialIndex: widget.initialIndex);
+    BusinessDashboardScreen.tabRequest.addListener(_onTabRequest);
+
     // Forzamos una recarga inicial silenciosa por si venimos de una notificación push
     // en background donde el provider seguía vivo pero desactualizado.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(dashboardProvider.notifier).loadData(silent: true);
       _checkWelcomeMessage();
+      // Aplica cualquier pedido de pestaña pendiente (ej. push en arranque en frío).
+      _onTabRequest();
     });
 
     _scansSub = RealtimeSyncService().onScansChanged.listen((_) {
@@ -61,9 +75,20 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     });
   }
 
+  void _onTabRequest() {
+    final requested = BusinessDashboardScreen.tabRequest.value;
+    if (requested == null) return;
+    if (mounted && requested >= 0 && requested < _tabController.length) {
+      _tabController.animateTo(requested);
+    }
+    BusinessDashboardScreen.tabRequest.value = null; // consumido
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    BusinessDashboardScreen.tabRequest.removeListener(_onTabRequest);
+    _tabController.dispose();
     _scansSub?.cancel();
     _rewardsSub?.cancel();
     super.dispose();
@@ -402,10 +427,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
       ownerDisplayName = parts.length >= 2 ? '${parts[0]} ${parts[1]}' : parts[0];
     }
 
-    return DefaultTabController(
-      length: 5,
-      initialIndex: widget.initialIndex,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
           toolbarHeight: 90,
@@ -479,6 +501,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
             const SizedBox(width: 8),
           ],
           bottom: TabBar(
+            controller: _tabController,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.8),
             indicatorWeight: 4,
@@ -527,6 +550,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
         ),
         body: SafeArea(
           child: TabBarView(
+            controller: _tabController,
             children: [
               const TabCustomers(),
               const TabPendingScans(),
@@ -536,7 +560,6 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
             ],
           ),
         ),
-      ),
     );
   }
 }

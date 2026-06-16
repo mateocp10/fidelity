@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/validators/app_validators.dart';
 import '../auth/login_screen.dart';
@@ -59,10 +60,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil actualizado'), backgroundColor: AppTheme.accentGreen),
-        );
-        Navigator.pop(context, true);
+        await _showSavedAnimation();
+        if (mounted) Navigator.pop(context, true);
       } else {
         final error = ref.read(userProfileProvider).error;
         if (error != null) {
@@ -72,6 +71,55 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         }
       }
     }
+  }
+
+  /// Muestra una animación de éxito (check que escala) tras guardar el perfil.
+  /// Se autocierra a los ~1.4s y recién ahí volvemos a la pantalla anterior.
+  Future<void> _showSavedAnimation() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (dialogCtx) {
+        final navigator = Navigator.of(dialogCtx);
+        Future.delayed(const Duration(milliseconds: 1400), () {
+          if (navigator.canPop()) navigator.pop();
+        });
+        return Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+            margin: const EdgeInsets.symmetric(horizontal: 48),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(32),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    color: AppTheme.accentGreen,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_rounded, color: Colors.white, size: 48),
+                )
+                    .animate()
+                    .scale(duration: 450.ms, curve: Curves.easeOutBack)
+                    .then()
+                    .shimmer(duration: 600.ms, color: Colors.white70),
+                const SizedBox(height: 20),
+                Text(
+                  '¡PERFIL ACTUALIZADO!',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.anton(fontSize: 16, letterSpacing: 1, fontWeight: FontWeight.w400),
+                ).animate().fadeIn(delay: 200.ms),
+              ],
+            ),
+          ).animate().fadeIn(duration: 250.ms).scale(begin: const Offset(0.85, 0.85), curve: Curves.easeOut),
+        );
+      },
+    );
   }
 
   Future<void> _deleteAccount() async {
@@ -303,7 +351,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 48),
-                    _buildField(_fullNameController, 'NOMBRE COMPLETO', Icons.person_outline),
+                    _buildField(_fullNameController, 'NOMBRE COMPLETO', Icons.person_outline)
+                        .animate(delay: 100.ms)
+                        .slideX(begin: 0.1, curve: AppTheme.animCurveStandard)
+                        .fadeIn(),
                     const SizedBox(height: 24),
                     _buildField(
                       _phoneController,
@@ -314,9 +365,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         LengthLimitingTextInputFormatter(10),
                         FilteringTextInputFormatter.digitsOnly,
                       ],
-                    ),
+                    )
+                        .animate(delay: 200.ms)
+                        .slideX(begin: 0.1, curve: AppTheme.animCurveStandard)
+                        .fadeIn(),
                     const SizedBox(height: 24),
-                    _buildEmailReadOnly(state.email ?? ''),
+                    _buildEmailReadOnly(state.email ?? '')
+                        .animate(delay: 300.ms)
+                        .slideX(begin: 0.1, curve: AppTheme.animCurveStandard)
+                        .fadeIn(),
                     const SizedBox(height: 32),
 
                     // ACCIONES DE CUENTA

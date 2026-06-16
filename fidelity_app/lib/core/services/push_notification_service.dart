@@ -139,6 +139,20 @@ class PushNotificationService {
        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminActivityScreen()));
     } else if (route == '/admin_rewards') {
        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminRewardsScreen()));
+    } else if (route == '/business_dashboard/pending') {
+       // (Dueño) Escaneo pendiente: el dashboard raíz ya está renderizado,
+       // solo le pedimos que salte a la pestaña PENDIENTES.
+       BusinessDashboardScreen.goToTab(1);
+    } else if (route == '/business_dashboard/rewards') {
+       // (Dueño) Premio solicitado: saltamos a la pestaña PREMIOS.
+       BusinessDashboardScreen.goToTab(2);
+    } else if (route == '/business_dashboard') {
+       // (Dueño) Notificación genérica (ej. transferencia): dejamos el dashboard
+       // en su pestaña por defecto (CLIENTES). popUntil(isFirst) ya alcanza.
+    } else if (route == '/my_cards') {
+       // (Cliente) La raíz del cliente es MyCards, así que popUntil(isFirst)
+       // ya lo deja en el lugar correcto. Lo dejamos explícito para evitar
+       // que el routing dependa de un comportamiento implícito.
     } else if (route == '/transfer_received') {
        // La ruta raíz es MyCards para el cliente, así que popUntil(isFirst) ya lo deja ahí.
        // Esperamos a que la navegación termine y lanzamos la animación.

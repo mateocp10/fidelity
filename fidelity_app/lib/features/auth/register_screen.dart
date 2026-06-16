@@ -8,6 +8,7 @@ import 'login_screen.dart';
 import '../business/create_business_screen.dart';
 import '../../core/validators/app_validators.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/auth_error_translator.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -110,16 +111,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           });
         }
       }
-    } on AuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
-        );
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(AuthErrorTranslator.translate(e)),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     } finally {

@@ -566,19 +566,26 @@ class _AdminQrStatsScreenState extends State<AdminQrStatsScreen> {
                   final name = businesses[index].businessName;
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      name.length > 8 ? '${name.substring(0, 8)}...' : name,
-                      style: const TextStyle(
-                        color: Color(0xFF666666),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
+                    // Texto vertical: evita que los nombres de negocios se
+                    // solapen cuando hay varias barras juntas.
+                    child: RotatedBox(
+                      quarterTurns: 3,
+                      child: Text(
+                        name.length > 14 ? '${name.substring(0, 14)}…' : name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF666666),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   );
                 }
                 return const SizedBox.shrink();
               },
-              reservedSize: 38,
+              reservedSize: 90,
             ),
           ),
           leftTitles: AxisTitles(

@@ -11,12 +11,14 @@ class CardHistoryScreen extends ConsumerStatefulWidget {
   final String loyaltyCardId;
   final String businessId;
   final String businessName;
+  final int initialTabIndex;
 
   const CardHistoryScreen({
     super.key,
     required this.loyaltyCardId,
     required this.businessId,
     required this.businessName,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -309,6 +311,7 @@ class _CardHistoryScreenState extends ConsumerState<CardHistoryScreen> {
 
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTabIndex,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -426,8 +429,11 @@ class _CardHistoryScreenState extends ConsumerState<CardHistoryScreen> {
       itemBuilder: (context, index) {
         final item = items[index];
         final date = isScan ? item['scanned_at'] : item['earned_at'];
+        // Un punto sin qr_code_id fue otorgado manualmente por el dueño (regalo);
+        // con qr_code_id provino de un escaneo de QR.
+        final bool isGifted = isScan && (item['qr_code_id'] == null);
         final String actionTitle = isScan
-            ? '+1 PUNTO FIDELITY'
+            ? (isGifted ? '+1 PUNTO DE REGALO' : '+1 PUNTO POR ESCANEO')
             : 'PREMIO GANADO';
         final accent = isScan ? AppTheme.accentGreen : AppTheme.accentPink;
 
@@ -485,7 +491,9 @@ class _CardHistoryScreenState extends ConsumerState<CardHistoryScreen> {
                         ),
                         child: Icon(
                           isScan
-                              ? Icons.add_rounded
+                              ? (isGifted
+                                  ? Icons.redeem_rounded
+                                  : Icons.qr_code_scanner_rounded)
                               : Icons.card_giftcard_rounded,
                           color: isScan ? accent : statusColor,
                           size: 24,
@@ -512,6 +520,19 @@ class _CardHistoryScreenState extends ConsumerState<CardHistoryScreen> {
                                 letterSpacing: 0.5,
                               ),
                             ),
+                            if (isScan)
+                              Text(
+                                isGifted
+                                    ? 'Regalo del dueño'
+                                    : 'Por escaneo de QR',
+                                style: TextStyle(
+                                  color: isGifted
+                                      ? AppTheme.accentPurple
+                                      : Colors.black54,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             if (!isScan && item['description'] != null)
                               Text(
                                 item['description'].toString(),

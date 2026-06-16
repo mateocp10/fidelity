@@ -32,13 +32,29 @@ class MyCardsRepository {
             reward_long_description,
             points_required,
             logo_url
-          )
+          ),
+          rewards(id, status, earned_at)
         ''')
         .eq('user_id', userId)
         .order('last_scan_at', ascending: false, nullsFirst: false)
         .order('updated_at', ascending: false);
-    
-    return List<Map<String, dynamic>>.from(response);
+
+    final all = List<Map<String, dynamic>>.from(response);
+
+    // Las tarjetas con un premio sin reclamar (ganado o recibido por
+    // transferencia) suben al tope para que el usuario lo vea primero.
+    // Partición estable: preserva el orden original dentro de cada grupo.
+    final withReward = all.where(_hasUnclaimedReward).toList();
+    final withoutReward = all.where((c) => !_hasUnclaimedReward(c)).toList();
+    return [...withReward, ...withoutReward];
+  }
+
+  bool _hasUnclaimedReward(Map<String, dynamic> card) {
+    final rewards = (card['rewards'] as List?) ?? const [];
+    return rewards.any((r) {
+      final s = (r as Map)['status'];
+      return s == 'pending' || s == 'approved';
+    });
   }
 
   RealtimeChannel setupRealtimeSubscription({

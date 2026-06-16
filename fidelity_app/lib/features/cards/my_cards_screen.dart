@@ -24,6 +24,7 @@ class MyCardsScreen extends ConsumerStatefulWidget {
 class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
   late ConfettiController _confettiController;
   static bool _welcomeShown = false;
+  static bool _pendingRewardShown = false;
 
   StreamSubscription<void>? _loyaltyCardsSub;
   StreamSubscription<void>? _rewardsSub;
@@ -154,6 +155,99 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
     );
   }
 
+  /// Si el usuario tiene un premio sin reclamar (por si borró la notificación
+  /// por accidente), le mostramos un modal al reingresar a la app con un botón
+  /// que lo lleva directo al premio. Solo una vez por arranque de la app.
+  void _checkPendingRewards() {
+    if (_pendingRewardShown || !mounted) return;
+    // Si hay otro diálogo o pantalla por encima (ej. bienvenida), no lo apilamos.
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+
+    final state = ref.read(myCardsProvider);
+    Map<String, dynamic>? cardWithReward;
+    for (final card in state.cards) {
+      final rewards = (card['rewards'] as List?) ?? const [];
+      final hasUnclaimed = rewards.any((r) {
+        final s = (r as Map)['status'];
+        return s == 'pending' || s == 'approved';
+      });
+      if (hasUnclaimed) {
+        cardWithReward = card;
+        break;
+      }
+    }
+
+    if (cardWithReward == null) return;
+    _pendingRewardShown = true;
+    _showPendingRewardDialog(cardWithReward);
+  }
+
+  void _showPendingRewardDialog(Map<String, dynamic> card) {
+    final business = card['businesses'];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.accentYellow.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.card_giftcard_rounded, color: AppTheme.accentYellow, size: 44),
+            ).animate().scale(duration: 450.ms, curve: Curves.easeOutBack),
+            const SizedBox(height: 16),
+            Text(
+              '¡TENÉS UN PREMIO!',
+              style: GoogleFonts.anton(fontSize: 22, letterSpacing: 1, color: Colors.black),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        content: Text(
+          'Tenés un premio pendiente en ${business['name']}. ¡No te olvides de reclamarlo!',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 15, color: Colors.black87),
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('DESPUÉS', style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w900)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CardHistoryScreen(
+                          loyaltyCardId: card['id'],
+                          businessId: business['id'],
+                          businessName: business['name'],
+                          initialTabIndex: 1, // pestaña PREMIOS
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('VER PREMIO'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Extracts first name + last name from full_name string.
   String _getDisplayName(String fullName) {
     if (fullName.isEmpty) return '';
@@ -176,6 +270,15 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
             backgroundColor: theme.colorScheme.error,
           ),
         );
+      }
+
+      // Apenas terminan de cargar las tarjetas, revisamos si hay un premio
+      // pendiente para avisarle al usuario con un modal (una vez por sesión).
+      final justLoaded = !next.isLoading &&
+          next.cards.isNotEmpty &&
+          (previous == null || previous.isLoading || previous.cards.isEmpty);
+      if (justLoaded) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingRewards());
       }
     });
 
@@ -430,6 +533,17 @@ class _LoyaltyCardItem extends StatelessWidget {
     final progress = (currentPoints / pointsRequired).clamp(0.0, 1.0);
     final theme = Theme.of(context);
 
+    // Premios ganados pero todavía no reclamados (pendientes o aprobados).
+    // Esto permite mostrar el premio EN VIVO en la tarjeta apenas se otorga.
+    final rewardsList = (card['rewards'] as List?) ?? const [];
+    final unclaimedRewards = rewardsList.where((r) {
+      final s = (r as Map)['status'];
+      return s == 'pending' || s == 'approved';
+    }).toList();
+    final bool hasUnclaimedReward = unclaimedRewards.isNotEmpty;
+    final bool rewardReadyToClaim =
+        unclaimedRewards.any((r) => (r as Map)['status'] == 'approved');
+
     // Colores dinámicos basados en el índice para variedad (Estilo Emote)
     final accents = [
       AppTheme.accentPurple,
@@ -566,6 +680,16 @@ class _LoyaltyCardItem extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                // Premio ganado visible en vivo en la tarjeta.
+                if (hasUnclaimedReward) ...[
+                  const SizedBox(height: 20),
+                  _RewardBanner(
+                    count: unclaimedRewards.length,
+                    readyToClaim: rewardReadyToClaim,
+                  ),
+                ],
+
                 const SizedBox(height: 32),
 
                 // Progreso Estilo Minimalista
@@ -633,6 +757,77 @@ class _LoyaltyCardItem extends StatelessWidget {
         .animate(delay: (index * 100).ms)
         .slideY(begin: 0.2, curve: Curves.elasticOut, duration: 800.ms)
         .fadeIn();
+  }
+}
+
+class _RewardBanner extends StatelessWidget {
+  final int count;
+  final bool readyToClaim;
+
+  const _RewardBanner({required this.count, required this.readyToClaim});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color =
+        readyToClaim ? AppTheme.accentGreen : AppTheme.accentYellow;
+    final String title = count > 1
+        ? '¡TENÉS $count PREMIOS!'
+        : '¡TENÉS UN PREMIO!';
+    final String subtitle = readyToClaim
+        ? 'Listo para reclamar. Acercate al local.'
+        : 'Esperando aprobación del local.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.card_giftcard_rounded, color: color, size: 22),
+          )
+              .animate(onPlay: (c) => c.repeat(reverse: true))
+              .scaleXY(begin: 1.0, end: 1.12, duration: 800.ms, curve: Curves.easeInOut),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color == AppTheme.accentYellow
+                        ? const Color(0xFF8A6D00)
+                        : color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
