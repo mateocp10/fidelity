@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 class StepCampaignData extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController rewardController;
+  final TextEditingController rewardLongController;
   final TextEditingController pointsController;
 
   const StepCampaignData({
     super.key,
     required this.formKey,
     required this.rewardController,
+    required this.rewardLongController,
     required this.pointsController,
   });
 
@@ -47,6 +49,20 @@ class StepCampaignData extends StatelessWidget {
               ),
             ),
             validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+          ),
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: rewardLongController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              labelText: 'Descripción del premio (opcional)',
+              hintText: 'Detalles, condiciones, vigencia...',
+              prefixIcon: const Icon(Icons.description_outlined, color: Colors.black),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
 

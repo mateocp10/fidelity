@@ -93,6 +93,23 @@ class RealtimeSyncService {
     }
   }
 
+  /// Cierra el canal y permite re-suscribir en el próximo login SIN cerrar los
+  /// StreamControllers (las pantallas mantienen sus suscripciones entre sesiones).
+  /// Se llama al cerrar sesión para que el siguiente usuario abra un canal limpio
+  /// con su propio JWT.
+  void reset() {
+    try {
+      if (_channel != null) {
+        _supabase.removeChannel(_channel!);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error al resetear RealtimeSyncService: $e');
+    }
+    _channel = null;
+    _isInitialized = false;
+    debugPrint('🧹 RealtimeSyncService reset');
+  }
+
   void dispose() {
     _channel?.unsubscribe();
     _scansController.close();

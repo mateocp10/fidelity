@@ -59,6 +59,7 @@ class BusinessRepository {
     double? longitude,
     String? categoryId,
     required String rewardDescription,
+    String? rewardLongDescription,
     required int pointsRequired,
   }) async {
     final businessResponse = await _supabase.from('businesses').insert({
@@ -71,6 +72,7 @@ class BusinessRepository {
       'longitude': longitude,
       'category_id': categoryId,
       'reward_description': rewardDescription,
+      'reward_long_description': rewardLongDescription,
       'points_required': pointsRequired,
       'cooldown_hours': 4,
       'is_active': false,

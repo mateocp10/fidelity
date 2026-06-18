@@ -51,10 +51,9 @@ class MyCardsRepository {
 
   bool _hasUnclaimedReward(Map<String, dynamic> card) {
     final rewards = (card['rewards'] as List?) ?? const [];
-    return rewards.any((r) {
-      final s = (r as Map)['status'];
-      return s == 'pending' || s == 'approved';
-    });
+    // Solo 'pending': el premio fue ganado pero el local todavía no lo entregó.
+    // 'approved' significa ENTREGADO, así que ya no es un premio por reclamar.
+    return rewards.any((r) => (r as Map)['status'] == 'pending');
   }
 
   RealtimeChannel setupRealtimeSubscription({

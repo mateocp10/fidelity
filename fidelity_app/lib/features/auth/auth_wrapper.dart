@@ -147,6 +147,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
       // Manejar inicialización de push notification cuando hay usuario validado
       if (next is AuthAdmin || next is AuthBusinessActive || next is AuthClient) {
         PushNotificationService.initialize();
+        // Recién acá (ya autenticado) suscribimos el realtime, para que el canal
+        // lleve el JWT del usuario y RLS le entregue sus cambios en vivo.
+        RealtimeSyncService().initialize();
+      } else if (next is AuthUnauthenticated) {
+        // Al cerrar sesión, soltamos el canal para que el próximo login abra uno limpio.
+        RealtimeSyncService().reset();
       }
     });
 

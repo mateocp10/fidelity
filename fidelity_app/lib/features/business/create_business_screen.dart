@@ -49,6 +49,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
   String _selectedAddress = '';
 
   final _rewardDescriptionController = TextEditingController();
+  final _rewardLongDescriptionController = TextEditingController();
   final _pointsRequiredController = TextEditingController(text: '10');
 
   @override
@@ -102,6 +103,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
     _businessNameController.dispose();
     _businessDescriptionController.dispose();
     _rewardDescriptionController.dispose();
+    _rewardLongDescriptionController.dispose();
     _pointsRequiredController.dispose();
     super.dispose();
   }
@@ -159,15 +161,13 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
       longitude: _selectedLongitude,
       categoryId: _selectedCategory?.id.toString(),
       rewardDescription: _rewardDescriptionController.text,
+      rewardLongDescription: _rewardLongDescriptionController.text,
       pointsRequired: pointsRequired,
     );
   }
 
   void _showSuccessDialog() {
-    final String fullName = _fullNameController.text.trim();
-    final String businessName = _businessNameController.text.trim();
-    
-    final String waMessage = 'Hola, soy $fullName, acabo de crear mi negocio "$businessName" en Fidelity. ¿Me podrían dar información sobre cómo proceder para que mi cuenta sea aprobada y poder comenzar a fidelizar a mis clientes?';
+    final String waMessage = 'Hola Fidelity, he creado mi negocio y quiero fidelizar a mis clientes ya';
     final String waUrl = 'https://wa.me/593995371895?text=${Uri.encodeComponent(waMessage)}';
 
     showDialog(
@@ -389,6 +389,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
                   content: StepCampaignData(
                     formKey: _campaignFormKey,
                     rewardController: _rewardDescriptionController,
+                    rewardLongController: _rewardLongDescriptionController,
                     pointsController: _pointsRequiredController,
                   ),
                 ),

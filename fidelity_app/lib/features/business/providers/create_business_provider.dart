@@ -46,6 +46,7 @@ class CreateBusinessNotifier extends Notifier<CreateBusinessState> {
     required double? longitude,
     String? categoryId,
     required String rewardDescription,
+    String? rewardLongDescription,
     required int pointsRequired,
   }) async {
     final userId = ref.read(supabaseClientProvider).auth.currentUser?.id;
@@ -92,6 +93,8 @@ class CreateBusinessNotifier extends Notifier<CreateBusinessState> {
         longitude: longitude,
         categoryId: categoryId,
         rewardDescription: rewardDescription.trim(),
+        rewardLongDescription:
+            (rewardLongDescription?.trim().isEmpty ?? true) ? null : rewardLongDescription!.trim(),
         pointsRequired: pointsRequired,
       );
 

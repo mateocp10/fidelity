@@ -201,14 +201,14 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
             ).animate().scale(duration: 450.ms, curve: Curves.easeOutBack),
             const SizedBox(height: 16),
             Text(
-              '¡TENÉS UN PREMIO!',
+              '¡TIENES UN PREMIO!',
               style: GoogleFonts.anton(fontSize: 22, letterSpacing: 1, color: Colors.black),
               textAlign: TextAlign.center,
             ),
           ],
         ),
         content: Text(
-          'Tenés un premio pendiente en ${business['name']}. ¡No te olvides de reclamarlo!',
+          'Tienes un premio pendiente en ${business['name']}. ¡No te olvides de reclamarlo!',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 15, color: Colors.black87),
         ),
@@ -218,7 +218,14 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('DESPUÉS', style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w900)),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'DESPUÉS',
+                      maxLines: 1,
+                      style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w900),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -238,7 +245,10 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
                       ),
                     );
                   },
-                  child: const Text('VER PREMIO'),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('VER PREMIO', maxLines: 1),
+                  ),
                 ),
               ),
             ],
@@ -533,16 +543,14 @@ class _LoyaltyCardItem extends StatelessWidget {
     final progress = (currentPoints / pointsRequired).clamp(0.0, 1.0);
     final theme = Theme.of(context);
 
-    // Premios ganados pero todavía no reclamados (pendientes o aprobados).
-    // Esto permite mostrar el premio EN VIVO en la tarjeta apenas se otorga.
+    // Premios ganados pero todavía no entregados por el local (status 'pending').
+    // Apenas el local lo entrega (status 'approved') deja de mostrarse.
+    // Se actualiza EN VIVO porque el realtime de rewards dispara refreshCards.
     final rewardsList = (card['rewards'] as List?) ?? const [];
-    final unclaimedRewards = rewardsList.where((r) {
-      final s = (r as Map)['status'];
-      return s == 'pending' || s == 'approved';
-    }).toList();
+    final unclaimedRewards = rewardsList
+        .where((r) => (r as Map)['status'] == 'pending')
+        .toList();
     final bool hasUnclaimedReward = unclaimedRewards.isNotEmpty;
-    final bool rewardReadyToClaim =
-        unclaimedRewards.any((r) => (r as Map)['status'] == 'approved');
 
     // Colores dinámicos basados en el índice para variedad (Estilo Emote)
     final accents = [
@@ -684,10 +692,7 @@ class _LoyaltyCardItem extends StatelessWidget {
                 // Premio ganado visible en vivo en la tarjeta.
                 if (hasUnclaimedReward) ...[
                   const SizedBox(height: 20),
-                  _RewardBanner(
-                    count: unclaimedRewards.length,
-                    readyToClaim: rewardReadyToClaim,
-                  ),
+                  _RewardBanner(count: unclaimedRewards.length),
                 ],
 
                 const SizedBox(height: 32),
@@ -762,20 +767,16 @@ class _LoyaltyCardItem extends StatelessWidget {
 
 class _RewardBanner extends StatelessWidget {
   final int count;
-  final bool readyToClaim;
 
-  const _RewardBanner({required this.count, required this.readyToClaim});
+  const _RewardBanner({required this.count});
 
   @override
   Widget build(BuildContext context) {
-    final Color color =
-        readyToClaim ? AppTheme.accentGreen : AppTheme.accentYellow;
+    const Color color = AppTheme.accentYellow;
     final String title = count > 1
-        ? '¡TENÉS $count PREMIOS!'
-        : '¡TENÉS UN PREMIO!';
-    final String subtitle = readyToClaim
-        ? 'Listo para reclamar. Acercate al local.'
-        : 'Esperando aprobación del local.';
+        ? '¡TIENES $count PREMIOS!'
+        : '¡TIENES UN PREMIO!';
+    const String subtitle = 'Acércate al local para reclamarlo.';
 
     return Container(
       width: double.infinity,

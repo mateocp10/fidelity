@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,8 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../main.dart';
 import '../../features/business/dashboard/business_dashboard_screen.dart';
-import '../../features/cards/my_cards_screen.dart';
-import '../../features/admin/admin_dashboard_screen.dart';
+import '../../features/cards/card_history_screen.dart';
 import '../../features/admin/admin_users_screen.dart';
 import '../../features/admin/admin_businesses_screen.dart';
 import '../../features/admin/admin_activity_screen.dart';
@@ -49,7 +49,15 @@ class PushNotificationService {
         await _localNotifications.initialize(
           initializationSettings,
           onDidReceiveNotificationResponse: (details) {
-            _handleRouting(details.payload);
+            final payload = details.payload;
+            if (payload == null || payload.isEmpty) return;
+            try {
+              final data = Map<String, dynamic>.from(jsonDecode(payload) as Map);
+              _handleRoutingData(data);
+            } catch (_) {
+              // Compatibilidad: si el payload no es JSON, lo tratamos como ruta simple.
+              _handleRoutingData({'route': payload});
+            }
           },
         );
 
@@ -69,7 +77,9 @@ class PushNotificationService {
               notification.hashCode,
               notification.title,
               notification.body,
-              payload: message.data['route'],
+              // Codificamos el data completo como JSON para no perder
+              // business_id, loyalty_card_id, etc. al tocar la notificación.
+              payload: jsonEncode(message.data),
               NotificationDetails(
                 android: AndroidNotificationDetails(
                   _channel.id,
@@ -93,7 +103,7 @@ class PushNotificationService {
         // App abierta desde background
         FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
           debugPrint('App abierta desde notificacion (background)');
-          _handleRouting(message.data['route']);
+          _handleRoutingData(message.data);
         });
 
         // App abierta desde estado cerrado
@@ -102,7 +112,7 @@ class PushNotificationService {
           debugPrint('App abierta desde notificacion (terminada)');
           // Esperamos un frame para que el navigator este listo
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _handleRouting(initialMessage.data['route']);
+            _handleRoutingData(initialMessage.data);
           });
         }
 
@@ -113,12 +123,13 @@ class PushNotificationService {
     }
   }
 
-  static void _handleRouting(String? route) {
+  static void _handleRoutingData(Map<String, dynamic> data) {
     // Eliminar la notificación apenas el usuario la toque
     _localNotifications.cancelAll();
 
+    final route = data['route'] as String?;
     if (route == null) return;
-    
+
     final context = globalNavigatorKey.currentContext;
     if (context == null) return;
 
@@ -154,18 +165,37 @@ class PushNotificationService {
        // ya lo deja en el lugar correcto. Lo dejamos explícito para evitar
        // que el routing dependa de un comportamiento implícito.
     } else if (route == '/transfer_received') {
-       // La ruta raíz es MyCards para el cliente, así que popUntil(isFirst) ya lo deja ahí.
-       // Esperamos a que la navegación termine y lanzamos la animación.
-       Future.delayed(const Duration(milliseconds: 500), () {
-         if (globalNavigatorKey.currentContext != null) {
-           GlobalCelebrationDialog.show(
-             globalNavigatorKey.currentContext!,
-             title: '¡TE HAN TRANSFERIDO!',
-             message: '¡Acabas de recibir un premio de un amigo! Revisa tus tarjetas.',
-             iconType: 'transfer',
-           );
-         }
-       });
+       // (Cliente) Transferencia recibida: lo redirigimos SÍ O SÍ al historial
+       // de premios de esa tarjeta, donde aparece el premio recibido.
+       final loyaltyCardId = data['loyalty_card_id'] as String?;
+       final businessId = data['business_id'] as String?;
+       final businessName = data['business_name'] as String? ?? 'Premio recibido';
+
+       if (loyaltyCardId != null && loyaltyCardId.isNotEmpty &&
+           businessId != null && businessId.isNotEmpty) {
+         Navigator.of(context).push(
+           MaterialPageRoute(
+             builder: (_) => CardHistoryScreen(
+               loyaltyCardId: loyaltyCardId,
+               businessId: businessId,
+               businessName: businessName,
+               initialTabIndex: 1, // pestaña PREMIOS
+             ),
+           ),
+         );
+       } else {
+         // Fallback (push viejo sin IDs): al menos mostramos la celebración.
+         Future.delayed(const Duration(milliseconds: 500), () {
+           if (globalNavigatorKey.currentContext != null) {
+             GlobalCelebrationDialog.show(
+               globalNavigatorKey.currentContext!,
+               title: '¡TE HAN TRANSFERIDO!',
+               message: '¡Acabas de recibir un premio! Revisa tus tarjetas.',
+               iconType: 'transfer',
+             );
+           }
+         });
+       }
     }
     // Nota: Para /business_dashboard y /my_cards el AuthWrapper ya hace el trabajo por nosotros.
   }

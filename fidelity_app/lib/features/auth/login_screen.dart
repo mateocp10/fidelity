@@ -138,6 +138,9 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
+            // Sin rebote: el contenido entra en pantalla, pero seguimos
+            // permitiendo scroll si el teclado achica el espacio.
+            physics: const ClampingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
             child: Form(
               key: _formKey,
@@ -148,8 +151,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
                       child: Image.asset(
-                        'assets/images/logo_blanco.png',
-                        height: 180,
+                        'assets/images/logo_texto.png',
+                        height: 200,
                         fit: BoxFit.contain,
                       ),
                     ).animate().scale(duration: AppTheme.animDurationSlow, curve: AppTheme.animCurveElastic).fadeIn(),

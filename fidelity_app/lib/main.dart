@@ -8,8 +8,6 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/auth_wrapper.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/services/realtime_sync_service.dart';
-
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
@@ -30,8 +28,10 @@ void main() async {
     anonKey: SupabaseConfig.supabaseAnonKey,
   );
 
-  // Inicializar Servicio de Tiempo Real Global
-  RealtimeSyncService().initialize();
+  // NOTA: El RealtimeSyncService NO se inicializa acá. Si lo hiciéramos antes
+  // del login, el canal se suscribiría con el rol anónimo y, por las políticas
+  // RLS, el servidor nunca enviaría los cambios del usuario. Se inicializa
+  // tras autenticarse (ver AuthWrapper) para que el canal lleve el JWT.
 
   runApp(const ProviderScope(child: FidelityApp()));
 }

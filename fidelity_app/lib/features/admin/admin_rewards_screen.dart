@@ -575,7 +575,9 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> {
         itemBuilder: (context, index) {
           final transfer = filtered[index];
           final fromName = transfer['from_user']?['full_name'] ?? 'Usuario Desconocido';
+          final fromEmail = transfer['from_user']?['email'] ?? '';
           final toName = transfer['to_user']?['full_name'] ?? 'Usuario Desconocido';
+          final toEmail = transfer['to_user']?['email'] ?? '';
           final businessName = transfer['businesses']?['name'] ?? 'Local Desconocido';
           final pts = transfer['rewards']?['points_used'] ?? '?';
           final dateStr = transfer['transferred_at'] != null 
@@ -601,12 +603,28 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        'De: $fromName',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'REMITENTE',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.black38, letterSpacing: 0.5),
+                          ),
+                          Text(
+                            fromName,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                          ),
+                          if (fromEmail.isNotEmpty)
+                            Text(
+                              fromEmail,
+                              style: const TextStyle(fontSize: 11, color: Colors.black54),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
                     ),
                     Text(
@@ -615,16 +633,35 @@ class _AdminRewardsScreenState extends State<AdminRewardsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.arrow_forward, size: 14, color: AppTheme.accentPurple),
-                    const SizedBox(width: 4),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: Icon(Icons.arrow_downward_rounded, size: 14, color: AppTheme.accentPurple),
+                    ),
+                    const SizedBox(width: 6),
                     Expanded(
-                      child: Text(
-                        'A: $toName',
-                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'DESTINATARIO',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.black38, letterSpacing: 0.5),
+                          ),
+                          Text(
+                            toName,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                          ),
+                          if (toEmail.isNotEmpty)
+                            Text(
+                              toEmail,
+                              style: const TextStyle(fontSize: 11, color: Colors.black54),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
                     ),
                   ],

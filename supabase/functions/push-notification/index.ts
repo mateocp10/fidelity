@@ -192,8 +192,22 @@ async function handleRewardTransfers(payload: WebhookPayload) {
     const { userName: senderName } = await getUserTokenAndName(transfer.from_user_id);
     const { userName: receiverName, userToken: receiverToken } = await getUserTokenAndName(transfer.to_user_id);
 
+    // Buscamos la tarjeta del receptor (queda en el reward tras la transferencia)
+    // para poder redirigirlo directo al historial de premios de esa tarjeta.
+    const { data: reward } = await supabase
+      .from('rewards')
+      .select('loyalty_card_id')
+      .eq('id', transfer.reward_id)
+      .single();
+    const loyaltyCardId = reward?.loyalty_card_id ?? '';
+
     if (receiverToken) {
-      await sendPushNotification(receiverToken, '¡Te han transferido un premio! 🎁', `${senderName} te regaló un premio de ${businessName}. Entra para ver cómo retirarlo.`, { route: '/my_cards' });
+      await sendPushNotification(receiverToken, '¡Te han transferido un premio! 🎁', `${senderName} te regaló un premio de ${businessName}. Entra para ver cómo retirarlo.`, {
+        route: '/transfer_received',
+        business_id: String(transfer.business_id ?? ''),
+        loyalty_card_id: String(loyaltyCardId),
+        business_name: String(businessName ?? ''),
+      });
     }
 
     if (ownerToken) {
