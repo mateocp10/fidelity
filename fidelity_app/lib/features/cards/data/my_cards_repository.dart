@@ -41,12 +41,34 @@ class MyCardsRepository {
 
     final all = List<Map<String, dynamic>>.from(response);
 
-    // Las tarjetas con un premio sin reclamar (ganado o recibido por
-    // transferencia) suben al tope para que el usuario lo vea primero.
-    // Partición estable: preserva el orden original dentro de cada grupo.
-    final withReward = all.where(_hasUnclaimedReward).toList();
-    final withoutReward = all.where((c) => !_hasUnclaimedReward(c)).toList();
-    return [...withReward, ...withoutReward];
+    // Tarjetas con un escaneo PENDIENTE de aprobación (recién escaneado).
+    // El escaneo no actualiza last_scan_at, así que sin esto la tarjeta
+    // recién escaneada cae al fondo. La subimos al tope.
+    final pendingScansResp = await _supabase
+        .from('scans')
+        .select('loyalty_card_id')
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+    final pendingScanCardIds = <String>{};
+    for (final s in (pendingScansResp as List)) {
+      final id = s['loyalty_card_id'];
+      if (id != null) pendingScanCardIds.add(id as String);
+    }
+    bool hasPendingScan(Map<String, dynamic> c) =>
+        pendingScanCardIds.contains(c['id']);
+
+    // Orden por prioridad (partición estable, preserva el orden dentro del grupo):
+    //   1) escaneo pendiente de aprobación (recién escaneado)
+    //   2) premio ganado sin entregar
+    //   3) resto (por last_scan_at)
+    final group1 = all.where(hasPendingScan).toList();
+    final group2 = all
+        .where((c) => !hasPendingScan(c) && _hasUnclaimedReward(c))
+        .toList();
+    final group3 = all
+        .where((c) => !hasPendingScan(c) && !_hasUnclaimedReward(c))
+        .toList();
+    return [...group1, ...group2, ...group3];
   }
 
   bool _hasUnclaimedReward(Map<String, dynamic> card) {

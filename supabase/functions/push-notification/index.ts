@@ -132,17 +132,25 @@ async function handleScans(payload: WebhookPayload) {
     await broadcastToAdmins('Nuevo Escaneo 📸', `${clientName} escaneó un QR en ${businessName}.`, '/admin_activity');
   }
 
+  // Payload común para llevar al cliente a su listado de puntos + celebración.
+  const pointsPayload = {
+    route: '/points_approved',
+    business_id: String(scan.business_id ?? ''),
+    loyalty_card_id: String(scan.loyalty_card_id ?? ''),
+    business_name: String(businessName ?? ''),
+  };
+
   // Si se aprueba manualmente sin QR
   if (payload.type === 'INSERT' && scan.status === 'approved' && !scan.qr_code_id) {
     if (clientToken) {
-      await sendPushNotification(clientToken, '¡Punto asignado manualmente! 🎉', `${businessName} te ha dado un punto.`, { route: '/my_cards' });
+      await sendPushNotification(clientToken, '¡Punto asignado manualmente! 🎉', `${businessName} te ha dado un punto.`, pointsPayload);
     }
     await broadcastToAdmins('Punto Manual ⚡', `${businessName} asignó un punto manualmente a ${clientName}.`, '/admin_activity');
   }
 
   if (payload.type === 'UPDATE' && scan.status === 'approved' && payload.old_record?.status !== 'approved') {
     if (clientToken) {
-      await sendPushNotification(clientToken, '¡Punto aprobado! 🎉', `Tu escaneo en ${businessName} fue aprobado.`, { route: '/my_cards' });
+      await sendPushNotification(clientToken, '¡Punto aprobado! 🎉', `Tu escaneo en ${businessName} fue aprobado.`, pointsPayload);
     }
     await broadcastToAdmins('Escaneo Aprobado ✅', `${businessName} aprobó el escaneo de ${clientName}.`, '/admin_activity');
   }

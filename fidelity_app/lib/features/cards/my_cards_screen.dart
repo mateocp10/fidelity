@@ -28,6 +28,7 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
 
   StreamSubscription<void>? _loyaltyCardsSub;
   StreamSubscription<void>? _rewardsSub;
+  StreamSubscription<void>? _scansSub;
 
   @override
   void initState() {
@@ -56,12 +57,20 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
         ref.read(myCardsProvider.notifier).refreshCards();
       }
     });
+    // Un escaneo pendiente (recién hecho) debe reordenar la tarjeta al tope en vivo,
+    // aunque no cambie la fila de loyalty_cards.
+    _scansSub = RealtimeSyncService().onScansChanged.listen((_) {
+      if (mounted) {
+        ref.read(myCardsProvider.notifier).refreshCards(silent: true);
+      }
+    });
   }
 
   @override
   void dispose() {
     _loyaltyCardsSub?.cancel();
     _rewardsSub?.cancel();
+    _scansSub?.cancel();
     _confettiController.dispose();
     super.dispose();
   }
@@ -167,10 +176,10 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
     Map<String, dynamic>? cardWithReward;
     for (final card in state.cards) {
       final rewards = (card['rewards'] as List?) ?? const [];
-      final hasUnclaimed = rewards.any((r) {
-        final s = (r as Map)['status'];
-        return s == 'pending' || s == 'approved';
-      });
+      // Solo 'pending': si el premio ya está entregado ('approved') no molestamos
+      // al cliente con el recordatorio en cada inicio de sesión.
+      final hasUnclaimed =
+          rewards.any((r) => (r as Map)['status'] == 'pending');
       if (hasUnclaimed) {
         cardWithReward = card;
         break;

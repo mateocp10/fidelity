@@ -357,10 +357,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 48),
-                    _buildField(_fullNameController, 'NOMBRE COMPLETO', Icons.person_outline)
-                        .animate(delay: 100.ms)
-                        .slideX(begin: 0.1, curve: AppTheme.animCurveStandard)
-                        .fadeIn(),
+                    _buildField(_fullNameController, 'NOMBRE COMPLETO', Icons.person_outline),
                     const SizedBox(height: 24),
                     _buildField(
                       _phoneController,
@@ -371,15 +368,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         LengthLimitingTextInputFormatter(10),
                         FilteringTextInputFormatter.digitsOnly,
                       ],
-                    )
-                        .animate(delay: 200.ms)
-                        .slideX(begin: 0.1, curve: AppTheme.animCurveStandard)
-                        .fadeIn(),
+                    ),
                     const SizedBox(height: 24),
-                    _buildEmailReadOnly(state.email ?? '')
-                        .animate(delay: 300.ms)
-                        .slideX(begin: 0.1, curve: AppTheme.animCurveStandard)
-                        .fadeIn(),
+                    _buildEmailReadOnly(state.email ?? ''),
                     const SizedBox(height: 32),
 
                     // ACCIONES DE CUENTA

@@ -164,6 +164,38 @@ class PushNotificationService {
        // (Cliente) La raíz del cliente es MyCards, así que popUntil(isFirst)
        // ya lo deja en el lugar correcto. Lo dejamos explícito para evitar
        // que el routing dependa de un comportamiento implícito.
+    } else if (route == '/points_approved') {
+       // (Cliente) Le dieron/aprobaron un punto: lo llevamos al listado de
+       // puntos (pestaña ESCANEOS) de esa tarjeta y disparamos las serpentinas.
+       final loyaltyCardId = data['loyalty_card_id'] as String?;
+       final businessId = data['business_id'] as String?;
+       final businessName = data['business_name'] as String? ?? 'Tus puntos';
+
+       if (loyaltyCardId != null && loyaltyCardId.isNotEmpty &&
+           businessId != null && businessId.isNotEmpty) {
+         Navigator.of(context).push(
+           MaterialPageRoute(
+             builder: (_) => CardHistoryScreen(
+               loyaltyCardId: loyaltyCardId,
+               businessId: businessId,
+               businessName: businessName,
+               initialTabIndex: 0, // pestaña ESCANEOS (listado de puntos)
+             ),
+           ),
+         );
+       }
+
+       // Animación de celebración (serpentinas) al tocar la notificación.
+       Future.delayed(const Duration(milliseconds: 500), () {
+         if (globalNavigatorKey.currentContext != null) {
+           GlobalCelebrationDialog.show(
+             globalNavigatorKey.currentContext!,
+             title: '¡SUMASTE UN PUNTO!',
+             message: '¡Felicidades! Ya puedes ver tu listado de puntos.',
+             iconType: 'reward',
+           );
+         }
+       });
     } else if (route == '/transfer_received') {
        // (Cliente) Transferencia recibida: lo redirigimos SÍ O SÍ al historial
        // de premios de esa tarjeta, donde aparece el premio recibido.

@@ -149,19 +149,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     // Logo principal de la app (fondo blanco según requerido)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 8),
                       child: Image.asset(
                         'assets/images/logo_texto.png',
-                        height: 200,
+                        height: 150,
                         fit: BoxFit.contain,
                       ),
                     ).animate().scale(duration: AppTheme.animDurationSlow, curve: AppTheme.animCurveElastic).fadeIn(),
-                    
-                    const SizedBox(height: 48),
-                  
-                  
 
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 24),
 
                   // Formulario
                   Column(
