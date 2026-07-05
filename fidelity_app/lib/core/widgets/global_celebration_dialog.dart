@@ -16,16 +16,26 @@ class GlobalCelebrationDialog extends StatefulWidget {
     this.iconType = 'reward',
   });
 
-  static Future<void> show(BuildContext context, {required String title, required String message, String iconType = 'reward'}) {
-    return showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => GlobalCelebrationDialog(
-        title: title,
-        message: message,
-        iconType: iconType,
-      ),
-    );
+  // Evita que se apilen varios diálogos de celebración a la vez (por ejemplo si
+  // el push y el realtime disparan casi juntos). Solo se muestra uno.
+  static bool _isOpen = false;
+
+  static Future<void> show(BuildContext context, {required String title, required String message, String iconType = 'reward'}) async {
+    if (_isOpen) return;
+    _isOpen = true;
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => GlobalCelebrationDialog(
+          title: title,
+          message: message,
+          iconType: iconType,
+        ),
+      );
+    } finally {
+      _isOpen = false;
+    }
   }
 
   @override

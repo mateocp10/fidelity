@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../scanner/scanner_screen.dart';
 import 'card_history_screen.dart';
 import '../profile/user_profile_screen.dart';
-import '../profile/providers/user_profile_provider.dart';
 import '../../core/theme/app_theme.dart';
 import 'providers/my_cards_provider.dart';
 import 'dart:async';
@@ -16,6 +15,13 @@ import '../../core/widgets/global_celebration_dialog.dart';
 
 class MyCardsScreen extends ConsumerStatefulWidget {
   const MyCardsScreen({super.key});
+
+  /// Resetea los flags de sesión (bienvenida / recordatorio de premio) al cerrar
+  /// sesión, para que el próximo usuario en el mismo proceso los vea bien.
+  static void resetSessionFlags() {
+    _MyCardsScreenState._welcomeShown = false;
+    _MyCardsScreenState._pendingRewardShown = false;
+  }
 
   @override
   ConsumerState<MyCardsScreen> createState() => _MyCardsScreenState();
@@ -26,7 +32,6 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
   static bool _welcomeShown = false;
   static bool _pendingRewardShown = false;
 
-  StreamSubscription<void>? _loyaltyCardsSub;
   StreamSubscription<void>? _rewardsSub;
   StreamSubscription<void>? _scansSub;
 
@@ -47,28 +52,25 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
       }
     });
 
-    _loyaltyCardsSub = RealtimeSyncService().onLoyaltyCardsChanged.listen((_) {
-      if (mounted) {
-        ref.read(myCardsProvider.notifier).refreshCards();
-      }
-    });
+    // Nota: los cambios de loyalty_cards ya los maneja el canal filtrado del
+    // provider (que además dispara la celebración). Acá solo escuchamos rewards
+    // y scans (que el provider no cubre) y todo pasa por el debounce del notifier.
     _rewardsSub = RealtimeSyncService().onRewardsChanged.listen((_) {
       if (mounted) {
-        ref.read(myCardsProvider.notifier).refreshCards();
+        ref.read(myCardsProvider.notifier).scheduleRefresh();
       }
     });
     // Un escaneo pendiente (recién hecho) debe reordenar la tarjeta al tope en vivo,
     // aunque no cambie la fila de loyalty_cards.
     _scansSub = RealtimeSyncService().onScansChanged.listen((_) {
       if (mounted) {
-        ref.read(myCardsProvider.notifier).refreshCards(silent: true);
+        ref.read(myCardsProvider.notifier).scheduleRefresh();
       }
     });
   }
 
   @override
   void dispose() {
-    _loyaltyCardsSub?.cancel();
     _rewardsSub?.cancel();
     _scansSub?.cancel();
     _confettiController.dispose();
@@ -337,41 +339,39 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
                   MaterialPageRoute(builder: (_) => const UserProfileScreen()),
                 );
                 if (result == true) {
-                  ref.invalidate(myCardsProvider);
-                  ref.invalidate(userProfileProvider);
+                  // Refresco silencioso (sin spinner): actualiza foto y nombre en
+                  // su lugar, sin recargar toda la pantalla ni parpadear.
+                  ref.read(myCardsProvider.notifier).refreshCards(silent: true);
                 }
               },
               child: Stack(
                 children: [
-                  Hero(
-                    tag: 'user_avatar',
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppTheme.accentPurple.withValues(alpha: 0.1),
-                        image: state.avatarUrl != null
-                            ? DecorationImage(
-                                image: NetworkImage(state.avatarUrl!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                      child: state.avatarUrl == null
-                          ? Center(
-                              child: Text(
-                                state.userName.isNotEmpty
-                                    ? state.userName[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  color: AppTheme.accentPurple,
-                                ),
-                              ),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.accentPurple.withValues(alpha: 0.1),
+                      image: state.avatarUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage(state.avatarUrl!),
+                              fit: BoxFit.cover,
                             )
                           : null,
                     ),
+                    child: state.avatarUrl == null
+                        ? Center(
+                            child: Text(
+                              state.userName.isNotEmpty
+                                  ? state.userName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.accentPurple,
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                   Positioned(
                     right: 0,

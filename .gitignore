@@ -1,0 +1,10 @@
+# Dumps de base de datos (¡contienen keys/secretos como service_role!)
+backup_supabase/
+
+# Supabase CLI (temporales)
+supabase/.temp/
+
+# Artefactos de trabajo que no van al repo
+FIDELITY_*.png
+Fidelity.pdf
+check_policies.sql

@@ -65,7 +65,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
     });
     try {
       var scansQuery = supabase.from('scans').select('''
-            id, scanned_at, status, is_demo,
+            id, scanned_at, status, is_demo, qr_code_id,
             profiles:user_id (full_name, email),
             businesses:business_id (name)
           ''');
@@ -122,7 +122,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
       final endIndex = startIndex + _pageSize - 1;
 
       var scansQuery = supabase.from('scans').select('''
-            id, scanned_at, status, is_demo,
+            id, scanned_at, status, is_demo, qr_code_id,
             profiles:user_id (full_name, email),
             businesses:business_id (name)
           ''');
@@ -286,6 +286,15 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                         final userName = profile['full_name'] ?? profile['email'] ?? 'Usuario Desconocido';
                         final status = activity['status'] ?? 'pending';
 
+                        // Un escaneo sin qr_code_id fue un punto otorgado a mano
+                        // por el dueño del local (regalo); con qr_code_id vino de un
+                        // escaneo real del QR.
+                        final bool isGifted = activity['qr_code_id'] == null;
+                        final String actionText =
+                            isGifted ? 'recibió un punto de regalo' : 'escaneó QR';
+                        final Color originColor =
+                            isGifted ? AppTheme.accentPurple : AppTheme.accentPink;
+
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -294,12 +303,15 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(16),
                             leading: CircleAvatar(
-                              backgroundColor: AppTheme.accentPink.withValues(alpha: 0.1),
-                              child: const Icon(Icons.history, color: AppTheme.accentPink),
+                              backgroundColor: originColor.withValues(alpha: 0.1),
+                              child: Icon(
+                                isGifted ? Icons.redeem_rounded : Icons.qr_code_scanner_rounded,
+                                color: originColor,
+                              ),
                             ),
                             title: Row(
                               children: [
-                                Expanded(child: Text('$userName escaneó QR', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                Expanded(child: Text('$userName $actionText', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                                 if (activity['is_demo'] == true)
                                   Container(
                                     margin: const EdgeInsets.only(left: 8),

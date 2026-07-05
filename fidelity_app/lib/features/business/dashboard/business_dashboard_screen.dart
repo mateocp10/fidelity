@@ -8,13 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../qr_management/qr_management_screen.dart';
 import '../rewards/rewards_management_screen.dart';
 import '../profile/business_profile_screen.dart';
-import '../../auth/login_screen.dart';
 import '../create_business_screen.dart';
-import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/supabase_provider.dart';
-import '../../../core/services/push_notification_service.dart';
-import '../../../core/services/realtime_sync_service.dart';
 
 import 'providers/dashboard_provider.dart';
 import 'widgets/dashboard_animated_toast.dart';
@@ -43,9 +39,6 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
 
   late final TabController _tabController;
 
-  StreamSubscription<void>? _scansSub;
-  StreamSubscription<void>? _rewardsSub;
-
   @override
   void initState() {
     super.initState();
@@ -54,24 +47,13 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     _tabController = TabController(length: 5, vsync: this, initialIndex: widget.initialIndex);
     BusinessDashboardScreen.tabRequest.addListener(_onTabRequest);
 
-    // Forzamos una recarga inicial silenciosa por si venimos de una notificación push
-    // en background donde el provider seguía vivo pero desactualizado.
+    // El provider ya carga en su build() y se suscribe al realtime con canales
+    // filtrados por business_id. Acá solo refrescamos si quedó viejo (ej. al
+    // volver de una notificación push) y resolvemos la pestaña pedida.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(dashboardProvider.notifier).loadData(silent: true);
+      ref.read(dashboardProvider.notifier).reloadIfStale();
       _checkWelcomeMessage();
-      // Aplica cualquier pedido de pestaña pendiente (ej. push en arranque en frío).
       _onTabRequest();
-    });
-
-    _scansSub = RealtimeSyncService().onScansChanged.listen((_) {
-      if (mounted) {
-        ref.read(dashboardProvider.notifier).loadData(silent: true);
-      }
-    });
-    _rewardsSub = RealtimeSyncService().onRewardsChanged.listen((_) {
-      if (mounted) {
-        ref.read(dashboardProvider.notifier).loadData(silent: true);
-      }
     });
   }
 
@@ -89,18 +71,16 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     WidgetsBinding.instance.removeObserver(this);
     BusinessDashboardScreen.tabRequest.removeListener(_onTabRequest);
     _tabController.dispose();
-    _scansSub?.cancel();
-    _rewardsSub?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Si la app vuelve del background (ej. haciendo click en una notificación),
-      // forzamos la actualización de datos para no quedarnos con info vieja.
+      // Al volver del background refrescamos solo si los datos quedaron viejos,
+      // evitando una recarga completa en cada resume.
       if (mounted) {
-        ref.read(dashboardProvider.notifier).loadData(silent: true);
+        ref.read(dashboardProvider.notifier).reloadIfStale();
       }
     }
   }
@@ -441,7 +421,8 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                   MaterialPageRoute(builder: (context) => BusinessProfileScreen(business: business, ownerName: state.ownerName)),
                 );
                 if (result == true) {
-                  ref.invalidate(dashboardProvider);
+                  // Recarga silenciosa: evita el parpadeo de reconstruir todo el dashboard.
+                  ref.read(dashboardProvider.notifier).loadData(silent: true);
                 }
               },
               child: Stack(

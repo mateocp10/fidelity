@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/providers/supabase_provider.dart';
@@ -56,18 +57,43 @@ class DashboardNotifier extends Notifier<DashboardState> {
   RealtimeChannel? _rewardsChannel;
   RealtimeChannel? _loyaltyCardsChannel;
 
+  // Debounce: una acción que toca varias tablas (scans + rewards + loyalty_cards)
+  // dispara varios eventos realtime casi simultáneos. En vez de recargar por cada
+  // uno, los agrupamos en UNA sola recarga.
+  Timer? _reloadDebounce;
+  DateTime? _lastLoadedAt;
+
   @override
   DashboardState build() {
     // Initial load happens after build or via a scheduled microtask
     Future.microtask(() => loadData());
-    
+
     ref.onDispose(() {
+      _reloadDebounce?.cancel();
       _scansChannel?.unsubscribe();
       _rewardsChannel?.unsubscribe();
       _loyaltyCardsChannel?.unsubscribe();
     });
 
     return DashboardState();
+  }
+
+  /// Agrupa múltiples pedidos de recarga en una sola (trailing debounce).
+  void _scheduleReload() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 350), () {
+      loadData(silent: true);
+    });
+  }
+
+  /// Recarga solo si los datos están "viejos". Útil al volver del background o
+  /// re-entrar a la pantalla, sin recargar de más si recién se cargó.
+  void reloadIfStale({Duration maxAge = const Duration(seconds: 20)}) {
+    if (state.isLoading) return; // ya hay una carga en curso; evita duplicarla
+    final last = _lastLoadedAt;
+    if (last == null || DateTime.now().difference(last) > maxAge) {
+      _scheduleReload();
+    }
   }
 
   Future<void> loadData({bool silent = false}) async {
@@ -109,19 +135,24 @@ class DashboardNotifier extends Notifier<DashboardState> {
 
       final businessId = business['id'] as String;
 
-      final customers = await repo.fetchCustomers(businessId);
-      final pendingScans = await repo.fetchPendingScans(businessId);
-      final pendingRewards = await repo.fetchPendingRewards(businessId);
+      // Estas 3 consultas son independientes entre sí: las corremos en paralelo
+      // en vez de una tras otra para reducir la latencia total.
+      final results = await Future.wait([
+        repo.fetchCustomers(businessId),
+        repo.fetchPendingScans(businessId),
+        repo.fetchPendingRewards(businessId),
+      ]);
 
       state = state.copyWith(
         isLoading: false,
         business: business,
-        customers: customers,
-        pendingScans: pendingScans,
-        pendingRewards: pendingRewards,
+        customers: results[0],
+        pendingScans: results[1],
+        pendingRewards: results[2],
         ownerName: ownerName,
       );
 
+      _lastLoadedAt = DateTime.now();
       _setupRealtimeSubscription(businessId);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -141,7 +172,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
         column: 'business_id',
         value: businessId,
       ),
-      callback: (payload) => loadData(silent: true),
+      callback: (payload) => _scheduleReload(),
     ).subscribe();
 
     _rewardsChannel = supabase.channel('biz-rewards:$businessId').onPostgresChanges(
@@ -153,7 +184,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
         column: 'business_id',
         value: businessId,
       ),
-      callback: (payload) => loadData(silent: true),
+      callback: (payload) => _scheduleReload(),
     ).subscribe();
 
     _loyaltyCardsChannel = supabase.channel('biz-loyalty:$businessId').onPostgresChanges(
@@ -165,7 +196,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
         column: 'business_id',
         value: businessId,
       ),
-      callback: (payload) => loadData(silent: true),
+      callback: (payload) => _scheduleReload(),
     ).subscribe();
   }
 
@@ -180,8 +211,8 @@ class DashboardNotifier extends Notifier<DashboardState> {
         points: points,
       );
       state = state.copyWith(toastMessage: '✅ ¡Puntos agregados!', toastIsError: false);
-      // Wait a bit to let realtime refresh the data or force a silent reload
-      Future.delayed(const Duration(milliseconds: 500), () => loadData(silent: true));
+      // El realtime + debounce se encargan de recargar una sola vez.
+      _scheduleReload();
     } catch (e) {
       if (e.toString().contains('PENDING_REWARD')) {
         state = state.copyWith(toastMessage: 'ERROR_PENDING_REWARD', toastIsError: true);
@@ -202,7 +233,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
         toastMessage: rewardGenerated ? 'Escaneo aprobado. ¡Premio generado!' : 'Escaneo aprobado',
         toastIsError: false,
       );
-      await loadData(silent: true);
+      _scheduleReload();
     } catch (e) {
       state = state.copyWith(toastMessage: 'Error: $e', toastIsError: true);
     }
@@ -212,7 +243,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
     try {
       await ref.read(dashboardRepositoryProvider).rejectScan(scanId);
       state = state.copyWith(toastMessage: 'Escaneo rechazado', toastIsError: false);
-      await loadData(silent: true);
+      _scheduleReload();
     } catch (e) {
       state = state.copyWith(toastMessage: 'Error: $e', toastIsError: true);
     }
@@ -229,7 +260,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
         cardId: cardId,
       );
       state = state.copyWith(toastMessage: 'Premio canjeado', toastIsError: false);
-      await loadData(silent: true);
+      _scheduleReload();
     } catch (e) {
       state = state.copyWith(toastMessage: 'Error: $e', toastIsError: true);
     }

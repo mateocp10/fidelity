@@ -18,6 +18,9 @@ class PushNotificationService {
   static final _supabase = Supabase.instance.client;
   static final _localNotifications = FlutterLocalNotificationsPlugin();
 
+  // Los listeners de FCM / notificaciones se registran UNA sola vez por proceso.
+  static bool _listenersRegistered = false;
+
   static const _channel = AndroidNotificationChannel(
     'high_importance_channel',
     'Notificaciones de Fidelity',
@@ -36,7 +39,20 @@ class PushNotificationService {
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         debugPrint('Permiso de notificaciones concedido.');
-        
+
+        // El token se guarda SIEMPRE, para asociarlo con el usuario logueado actual.
+        final fcmToken = await _firebaseMessaging.getToken();
+        if (fcmToken != null) {
+          await _saveTokenToDatabase(fcmToken);
+        }
+
+        // Los listeners se registran UNA sola vez por proceso. Sin esto, cada
+        // llamada a initialize() (el AuthWrapper la hace en cada cambio de auth)
+        // apilaría handlers duplicados y la notificación se manejaría N veces
+        // (por eso el diálogo de celebración aparecía repetido).
+        if (_listenersRegistered) return;
+        _listenersRegistered = true;
+
         await _localNotifications
             .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
             ?.createNotificationChannel(_channel);
@@ -60,13 +76,6 @@ class PushNotificationService {
             }
           },
         );
-
-        final fcmToken = await _firebaseMessaging.getToken();
-        
-        if (fcmToken != null) {
-          debugPrint('FCM Token obtenido: ');
-          await _saveTokenToDatabase(fcmToken);
-        }
 
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
           RemoteNotification? notification = message.notification;

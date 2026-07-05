@@ -35,7 +35,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
     });
 
     _transferSub = RealtimeSyncService().onRewardTransfersChanged.listen((payload) {
-      if (payload == null) return;
+      if (!mounted || payload == null) return;
       final currentUserId = ref.read(supabaseClientProvider).auth.currentUser?.id;
       if (payload['to_user_id'] == currentUserId && currentUserId != null) {
         GlobalCelebrationDialog.show(
@@ -151,8 +151,11 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
         // lleve el JWT del usuario y RLS le entregue sus cambios en vivo.
         RealtimeSyncService().initialize();
       } else if (next is AuthUnauthenticated) {
-        // Al cerrar sesión, soltamos el canal para que el próximo login abra uno limpio.
+        // Al cerrar sesión, soltamos el canal para que el próximo login abra uno limpio,
+        // y reseteamos los flags de sesión (bienvenida / recordatorio de premio) para
+        // que el próximo usuario los vea correctamente.
         RealtimeSyncService().reset();
+        MyCardsScreen.resetSessionFlags();
       }
     });
 

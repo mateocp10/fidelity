@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/validators/app_validators.dart';
-import '../auth/login_screen.dart';
 import '../help/faqs_screen.dart';
 import '../auth/providers/auth_provider.dart';
 import 'providers/user_profile_provider.dart';
@@ -323,25 +322,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         onTap: _pickImage,
                         child: Stack(
                           children: [
-                            // Hero destino: matchea con el avatar de MyCardsScreen
-                            // para animar la transición al entrar al perfil
-                            // (igual que el flujo del negocio).
-                            Hero(
-                              tag: 'user_avatar',
-                              child: Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  image: _newAvatarFile != null
-                                      ? DecorationImage(image: FileImage(File(_newAvatarFile!.path)), fit: BoxFit.cover)
-                                      : (state.avatarUrl != null ? DecorationImage(image: NetworkImage(state.avatarUrl!), fit: BoxFit.cover) : null),
-                                ),
-                                child: (state.avatarUrl == null && _newAvatarFile == null)
-                                    ? const Icon(Icons.person_outline, size: 50, color: Colors.black26)
-                                    : null,
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black.withValues(alpha: 0.04),
+                                image: _newAvatarFile != null
+                                    ? DecorationImage(image: FileImage(File(_newAvatarFile!.path)), fit: BoxFit.cover)
+                                    : (state.avatarUrl != null ? DecorationImage(image: NetworkImage(state.avatarUrl!), fit: BoxFit.cover) : null),
                               ),
+                              child: (state.avatarUrl == null && _newAvatarFile == null)
+                                  ? const Icon(Icons.person_outline, size: 50, color: Colors.black26)
+                                  : null,
                             ),
                             Positioned(
                               right: 0,

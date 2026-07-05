@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,16 +52,29 @@ class MyCardsNotifier extends Notifier<MyCardsState> {
   void Function()? onCardCompleted;
   void Function()? onPointEarned;
 
+  // Debounce: varios eventos realtime (loyalty_cards + rewards + scans) por una
+  // misma acción se agrupan en un solo refresco.
+  Timer? _refreshDebounce;
+
   @override
   MyCardsState build() {
     _repository = ref.watch(myCardsRepositoryProvider);
     Future.microtask(() => _loadInitialData());
-    
+
     ref.onDispose(() {
+      _refreshDebounce?.cancel();
       _cardsChannel?.unsubscribe();
     });
-    
+
     return MyCardsState();
+  }
+
+  /// Agrupa múltiples pedidos de refresco en uno solo (trailing debounce).
+  void scheduleRefresh() {
+    _refreshDebounce?.cancel();
+    _refreshDebounce = Timer(const Duration(milliseconds: 350), () {
+      refreshCards(silent: true);
+    });
   }
 
   Future<void> _loadInitialData() async {
@@ -145,7 +159,7 @@ class MyCardsNotifier extends Notifier<MyCardsState> {
           // You could optionally add an onRewardClaimed callback here if needed later
         }
 
-        refreshCards(silent: true);
+        scheduleRefresh();
       },
     );
   }
