@@ -98,6 +98,8 @@ class PushNotificationService {
                   priority: Priority.high,
                   icon: android.smallIcon,
                   playSound: true,
+                  // Al tocarla, se elimina sola del panel de notificaciones.
+                  autoCancel: true,
                 ),
                 iOS: const DarwinNotificationDetails(
                   presentAlert: true,
@@ -205,6 +207,26 @@ class PushNotificationService {
            );
          }
        });
+    } else if (route == '/reward') {
+       // (Cliente) Evento de premio (ganado / entregado / rechazado): lo llevamos
+       // a la pestaña PREMIOS de la tarjeta de ese negocio, no a la lista general.
+       final loyaltyCardId = data['loyalty_card_id'] as String?;
+       final businessId = data['business_id'] as String?;
+       final businessName = data['business_name'] as String? ?? 'Premios';
+
+       if (loyaltyCardId != null && loyaltyCardId.isNotEmpty &&
+           businessId != null && businessId.isNotEmpty) {
+         Navigator.of(context).push(
+           MaterialPageRoute(
+             builder: (_) => CardHistoryScreen(
+               loyaltyCardId: loyaltyCardId,
+               businessId: businessId,
+               businessName: businessName,
+               initialTabIndex: 1, // pestaña PREMIOS
+             ),
+           ),
+         );
+       }
     } else if (route == '/transfer_received') {
        // (Cliente) Transferencia recibida: lo redirigimos SÍ O SÍ al historial
        // de premios de esa tarjeta, donde aparece el premio recibido.

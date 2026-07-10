@@ -1,5 +1,7 @@
 # Dumps de base de datos (¡contienen keys/secretos como service_role!)
 backup_supabase/
+backup_supabase.zip
+backup_supabase*.zip
 
 # Supabase CLI (temporales)
 supabase/.temp/

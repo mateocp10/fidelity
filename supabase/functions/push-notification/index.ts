@@ -171,6 +171,15 @@ async function handleRewards(payload) {
   const reward = payload.record;
   const { businessName, ownerToken } = await getBusinessOwnerTokens(reward.business_id);
   const { userName: clientName, userToken: clientToken } = await getUserTokenAndName(reward.user_id);
+
+  // Lleva al cliente directo a la pestaña PREMIOS de la tarjeta de ese negocio.
+  const rewardPayload = {
+    route: '/reward',
+    business_id: String(reward.business_id ?? ''),
+    loyalty_card_id: String(reward.loyalty_card_id ?? ''),
+    business_name: String(businessName ?? '')
+  };
+
   if (payload.type === 'INSERT') {
     if (ownerToken) {
       await sendPushNotification(ownerToken, '¡Premio solicitado! 🎁', `${clientName} ganó un premio, pendiente de aprobar.`, {
@@ -178,25 +187,19 @@ async function handleRewards(payload) {
       });
     }
     if (clientToken) {
-      await sendPushNotification(clientToken, '¡Premio alcanzado! 🎁', `Haz ganado premio en ${businessName}, acercate a retirar, la aprobación esta pendiente.`, {
-        route: '/my_cards'
-      });
+      await sendPushNotification(clientToken, '¡Premio alcanzado! 🎁', `Haz ganado premio en ${businessName}, acercate a retirar, la aprobación esta pendiente.`, rewardPayload);
     }
     await broadcastToAdmins('Premio Alcanzado 🎁', `${clientName} alcanzó un premio en ${businessName}.`, '/admin_rewards');
   }
   if (payload.type === 'UPDATE' && (reward.status === 'approved' || reward.status === 'claimed') && payload.old_record?.status !== reward.status) {
     if (clientToken) {
-      await sendPushNotification(clientToken, '¡Premio entregado! 🥳', `Tu premio en ${businessName} fue aprobado.`, {
-        route: '/my_cards'
-      });
+      await sendPushNotification(clientToken, '¡Premio entregado! 🥳', `Tu premio en ${businessName} fue aprobado.`, rewardPayload);
     }
     await broadcastToAdmins('Premio Entregado ✅', `${businessName} entregó el premio a ${clientName}.`, '/admin_rewards');
   }
   if (payload.type === 'UPDATE' && reward.status === 'rejected' && payload.old_record?.status !== 'rejected') {
     if (clientToken) {
-      await sendPushNotification(clientToken, 'Premio rechazado ❌', `Tu premio en ${businessName} fue rechazado.`, {
-        route: '/my_cards'
-      });
+      await sendPushNotification(clientToken, 'Premio rechazado ❌', `Tu premio en ${businessName} fue rechazado.`, rewardPayload);
     }
     await broadcastToAdmins('Premio Rechazado ❌', `${businessName} rechazó el premio de ${clientName}.`, '/admin_rewards');
   }

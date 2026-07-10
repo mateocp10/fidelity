@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/user_avatar_circle.dart';
 import '../../../core/validators/app_validators.dart';
 import '../help/faqs_screen.dart';
 import '../auth/providers/auth_provider.dart';
@@ -322,19 +323,22 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         onTap: _pickImage,
                         child: Stack(
                           children: [
-                            Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.black.withValues(alpha: 0.04),
-                                image: _newAvatarFile != null
-                                    ? DecorationImage(image: FileImage(File(_newAvatarFile!.path)), fit: BoxFit.cover)
-                                    : (state.avatarUrl != null ? DecorationImage(image: NetworkImage(state.avatarUrl!), fit: BoxFit.cover) : null),
+                            // Hero destino: mismo widget que MyCardsScreen, para
+                            // que vuele como UNA sola pieza (child + flightShuttle).
+                            Hero(
+                              tag: 'user_avatar',
+                              flightShuttleBuilder: (_, __, ___, ____, _____) => UserAvatarCircle(
+                                avatarUrl: state.avatarUrl,
+                                newAvatarFile: _newAvatarFile != null ? File(_newAvatarFile!.path) : null,
                               ),
-                              child: (state.avatarUrl == null && _newAvatarFile == null)
-                                  ? const Icon(Icons.person_outline, size: 50, color: Colors.black26)
-                                  : null,
+                              child: SizedBox(
+                                width: 120,
+                                height: 120,
+                                child: UserAvatarCircle(
+                                  avatarUrl: state.avatarUrl,
+                                  newAvatarFile: _newAvatarFile != null ? File(_newAvatarFile!.path) : null,
+                                ),
+                              ),
                             ),
                             Positioned(
                               right: 0,

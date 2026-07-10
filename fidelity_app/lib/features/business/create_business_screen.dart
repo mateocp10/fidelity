@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../auth/login_screen.dart';
 import 'widgets/business_creation/step_logo_picker.dart';
 import 'widgets/business_creation/step_personal_data.dart';
 import 'widgets/business_creation/step_business_data.dart';
@@ -14,7 +13,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/models/business_category.dart';
 import '../../core/providers/supabase_provider.dart';
 import '../auth/providers/auth_provider.dart';
-import '../auth/data/auth_repository.dart';
 
 import 'providers/create_business_provider.dart';
 import 'data/business_repository.dart';
@@ -167,7 +165,9 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
   }
 
   void _showSuccessDialog() {
-    final String waMessage = 'Hola Fidelity, he creado mi negocio y quiero fidelizar a mis clientes ya';
+    final String businessName = _businessNameController.text.trim();
+    final String waMessage =
+        'Hola, acabo de crear mi negocio $businessName y quiero información para activar la cuenta.';
     final String waUrl = 'https://wa.me/593995371895?text=${Uri.encodeComponent(waMessage)}';
 
     showDialog(

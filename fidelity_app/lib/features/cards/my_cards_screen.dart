@@ -12,6 +12,7 @@ import 'providers/my_cards_provider.dart';
 import 'dart:async';
 import '../../core/services/realtime_sync_service.dart';
 import '../../core/widgets/global_celebration_dialog.dart';
+import '../../core/widgets/user_avatar_circle.dart';
 
 class MyCardsScreen extends ConsumerStatefulWidget {
   const MyCardsScreen({super.key});
@@ -339,39 +340,31 @@ class _MyCardsScreenState extends ConsumerState<MyCardsScreen> {
                   MaterialPageRoute(builder: (_) => const UserProfileScreen()),
                 );
                 if (result == true) {
-                  // Refresco silencioso (sin spinner): actualiza foto y nombre en
-                  // su lugar, sin recargar toda la pantalla ni parpadear.
-                  ref.read(myCardsProvider.notifier).refreshCards(silent: true);
+                  // Esperamos a que termine la animación de vuelta (Hero) ANTES de
+                  // refrescar, para no reconstruir el avatar a mitad del vuelo (eso
+                  // causaba el salto de tamaño "se agranda y se achica"). Luego
+                  // actualiza foto/nombre en su lugar, sin parpadear.
+                  Future.delayed(const Duration(milliseconds: 450), () {
+                    if (mounted) {
+                      ref.read(myCardsProvider.notifier).refreshCards(silent: true);
+                    }
+                  });
                 }
               },
               child: Stack(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppTheme.accentPurple.withValues(alpha: 0.1),
-                      image: state.avatarUrl != null
-                          ? DecorationImage(
-                              image: NetworkImage(state.avatarUrl!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
+                  // Hero: anima la transición del avatar al entrar al perfil,
+                  // igual que el negocio. El mismo widget vuela como UNA sola
+                  // pieza (child + flightShuttleBuilder), sin rearmarse.
+                  Hero(
+                    tag: 'user_avatar',
+                    flightShuttleBuilder: (_, __, ___, ____, _____) =>
+                        UserAvatarCircle(avatarUrl: state.avatarUrl),
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: UserAvatarCircle(avatarUrl: state.avatarUrl),
                     ),
-                    child: state.avatarUrl == null
-                        ? Center(
-                            child: Text(
-                              state.userName.isNotEmpty
-                                  ? state.userName[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: AppTheme.accentPurple,
-                              ),
-                            ),
-                          )
-                        : null,
                   ),
                   Positioned(
                     right: 0,
