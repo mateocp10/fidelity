@@ -164,11 +164,29 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
     );
   }
 
+  /// Abre WhatsApp con el mensaje precargado de forma confiable:
+  /// 1) esquema nativo whatsapp://send (abre la app DIRECTO, conserva el texto);
+  /// 2) fallback al link universal wa.me si WhatsApp no está instalado.
+  Future<void> _openWhatsApp(String message) async {
+    const String phone = '593995371895';
+    final String encoded = Uri.encodeComponent(message);
+    final Uri appUri = Uri.parse('whatsapp://send?phone=$phone&text=$encoded');
+    final Uri webUri = Uri.parse('https://wa.me/$phone?text=$encoded');
+    try {
+      if (await canLaunchUrl(appUri)) {
+        await launchUrl(appUri);
+        return;
+      }
+    } catch (_) {
+      // Si el esquema nativo falla, seguimos al fallback.
+    }
+    await launchUrl(webUri, mode: LaunchMode.externalApplication);
+  }
+
   void _showSuccessDialog() {
     final String businessName = _businessNameController.text.trim();
     final String waMessage =
         'Hola, acabo de crear mi negocio $businessName y quiero información para activar la cuenta.';
-    final String waUrl = 'https://wa.me/593995371895?text=${Uri.encodeComponent(waMessage)}';
 
     showDialog(
       context: context,
@@ -213,7 +231,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => launchUrl(Uri.parse(waUrl), mode: LaunchMode.externalApplication),
+                onPressed: () => _openWhatsApp(waMessage),
                 icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                 label: const Text('Contactar por WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
