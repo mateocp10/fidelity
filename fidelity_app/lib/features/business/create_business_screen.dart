@@ -213,7 +213,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => launchUrl(Uri.parse(waUrl)),
+                onPressed: () => launchUrl(Uri.parse(waUrl), mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                 label: const Text('Contactar por WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
