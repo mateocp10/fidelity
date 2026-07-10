@@ -13,6 +13,7 @@ import '../../core/services/push_notification_service.dart';
 import '../../core/services/realtime_sync_service.dart';
 import '../../core/widgets/global_celebration_dialog.dart';
 import '../../core/providers/supabase_provider.dart';
+import '../../core/utils/whatsapp_launcher.dart';
 import 'dart:async';
 import 'providers/auth_provider.dart';
 
@@ -96,7 +97,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => launchUrl(Uri.parse('https://wa.me/593995371895')),
+                onPressed: () => openSupportWhatsApp(
+                  'Hola, mi negocio está pendiente de activación en Fidelity y quiero información para activar la cuenta.',
+                ),
                 icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                 label: const Text('Contactar por WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(

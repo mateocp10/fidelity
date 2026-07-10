@@ -10,6 +10,7 @@ import 'widgets/business_creation/step_personal_data.dart';
 import 'widgets/business_creation/step_business_data.dart';
 import 'widgets/business_creation/step_campaign_data.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/whatsapp_launcher.dart';
 import '../../core/models/business_category.dart';
 import '../../core/providers/supabase_provider.dart';
 import '../auth/providers/auth_provider.dart';
@@ -164,25 +165,6 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
     );
   }
 
-  /// Abre WhatsApp con el mensaje precargado de forma confiable:
-  /// 1) esquema nativo whatsapp://send (abre la app DIRECTO, conserva el texto);
-  /// 2) fallback al link universal wa.me si WhatsApp no está instalado.
-  Future<void> _openWhatsApp(String message) async {
-    const String phone = '593995371895';
-    final String encoded = Uri.encodeComponent(message);
-    final Uri appUri = Uri.parse('whatsapp://send?phone=$phone&text=$encoded');
-    final Uri webUri = Uri.parse('https://wa.me/$phone?text=$encoded');
-    try {
-      if (await canLaunchUrl(appUri)) {
-        await launchUrl(appUri);
-        return;
-      }
-    } catch (_) {
-      // Si el esquema nativo falla, seguimos al fallback.
-    }
-    await launchUrl(webUri, mode: LaunchMode.externalApplication);
-  }
-
   void _showSuccessDialog() {
     final String businessName = _businessNameController.text.trim();
     final String waMessage =
@@ -231,7 +213,7 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _openWhatsApp(waMessage),
+                onPressed: () => openSupportWhatsApp(waMessage),
                 icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                 label: const Text('Contactar por WhatsApp', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
